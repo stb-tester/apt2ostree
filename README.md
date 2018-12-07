@@ -45,11 +45,11 @@ the apt-mirrors don't keep the old packages in their indices.
 
 To fix this we took a leaf from modern programming language package managers.
 We use the lockfile concept as used by rust's cargo package manager
-([cargo.lock][1]) or nodejs's npm ([package-lock.json][2]).  The idea is that
-you have two files, one that is written by hand and lists the packages you want
-to install, and a second one generated from the first that lists all the
-versions of the packages and all their transitive dependencies.  This second
-file is the lockfile.
+([cargo.lock]) or nodejs's npm ([package-lock.json]).  The idea is that you have
+two files, one that is written by hand and lists the packages you want to
+install, and a second one generated from the first that lists all the versions
+of the packages and all their transitive dependencies.  This second file is the
+lockfile.
 
 The key is that you check both files into your git repository.  The lockfile is
 a complete description of the packages you want to be installed on the target
@@ -61,6 +61,9 @@ system. This determinism has a few advantages:
    revisions to investigate any changes in behavior seen.
 3. Security updates are now recorded in your git history and can be managed and
    deployed explicitly.
+
+[cargo.lock]: https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
+[package-lock.json]: https://docs.npmjs.com/files/package-lock.json
 
 Updating lockfiles
 ------------------
@@ -81,7 +84,7 @@ can then choose to roll it out to our devices in the field.
 It turns out that the lockfile is a kind of snapshot of the package metadata
 from the debian mirrors filtered by the top-level list of packages you want
 installed - and we implement it in exactly this way.  The format of the lockfile
-is a debian Package index[3] as used by apt.  This has a number of benefits over
+is a [Debian Package index] as used by apt.  This has a number of benefits over
 a plain list of package names and versions:
 
 1. It contains MD5, SHA1 and SHA256 fields so we can be certain we're using
@@ -90,6 +93,8 @@ a plain list of package names and versions:
 2. It (indirectly) contains the URL of the package so we can implement the
    downloading of the packages external to the chroots where they will be
    installed.
+
+[Debian Package index]: https://wiki.debian.org/DebianRepository/Format#A.22Packages.22_Indices
 
 Example
 =======
