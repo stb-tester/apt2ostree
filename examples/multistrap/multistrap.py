@@ -67,12 +67,14 @@ def multistrap(config_file, ninja, apt):
 
     section = p.get("General", "aptsources").split()[0]
     
-    return apt.build_image(
+    image = apt.build_image(
         "%s.lock" % config_file,
         packages=get(section, "packages", "").split(),
         architecture=get("General", "arch"),
         distribution=get(section, "suite"),
         archive_url=get(section, "source"))
+    ninja.default(image.filename)
+    return image
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
