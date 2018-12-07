@@ -140,7 +140,7 @@ make_dpkg_info = Rule(
         ( cat control/control; echo Status: install ok unpacked; echo ) >status;
         ( cat control/control; echo ) >available;
         cd -;
-        ostree --repo=$ostree commit -b "$ref_base/info" --tree=dir=$$tmpdir/out
+        ostree --repo=$ostree_repo commit -b "$ref_base/info" --tree=dir=$$tmpdir/out
             --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0
             --no-xattrs;
         overwrite_if_changed $$tmpdir/status $builddir/$ref_base/status;
@@ -161,7 +161,7 @@ deb_combine_meta = Rule("deb_combine_meta", """\
     rm -rf "$$tmpdir";
     mkdir -p "$$tmpdir/var/lib/dpkg";
     cat $in >$$tmpdir/var/lib/dpkg/$meta;
-    ostree --repo=$ostree commit -b "deb/images/$pkgs_digest/$meta"
+    ostree --repo=$ostree_repo commit -b "deb/images/$pkgs_digest/$meta"
         --tree=dir=$$tmpdir --no-bindings --orphan --timestamp=0
         --owner-uid=0 --owner-gid=0 --no-xattrs;
     rm -rf "$$tmpdir";
@@ -174,7 +174,7 @@ ostree_combine = Rule(
     "ostree_combine", """\
         echo $in
          | sed 's,$ostree_repo/refs/heads/,--tree=ref=,g'
-         | xargs ostree --repo=$ostree commit -b $branch --no-bindings --orphan --timestamp=0;""",
+         | xargs ostree --repo=$ostree_repo commit -b $branch --no-bindings --orphan --timestamp=0;""",
     outputs=["$ostree_repo/refs/heads/$branch"],
     order_only=["$ostree_repo/config"],
     description="Ostree Combine for $branch")
@@ -189,7 +189,7 @@ dpkg_configure = Rule(
         sudo rm -rf "$$tmpdir";
         mkdir -p $$tmpdir;
         TARGET=$$tmpdir/co;
-        sudo ostree --repo=$ostree checkout --force-copy $in_branch $$TARGET;
+        sudo ostree --repo=$ostree_repo checkout --force-copy $in_branch $$TARGET;
         echo "root:x:0:0:root:/root:/bin/bash" | sudo sponge $$TARGET/etc/passwd;
         echo "root:x:0:" | sudo sponge $$TARGET/etc/group;
         BWRAP="sudo bwrap --bind $$TARGET / --proc /proc --dev /dev --tmpfs /tmp --tmpfs /run --setenv LANG C.UTF-8 --setenv DEBIAN_FRONTEND noninteractive";
@@ -209,7 +209,7 @@ dpkg_configure = Rule(
         sudo rm -f $$TARGET/etc/machine-id;
 
         sudo tar -C $$tmpdir/co -c .
-        | ostree --repo=$ostree commit --branch $out_branch --no-bindings
+        | ostree --repo=$ostree_repo commit --branch $out_branch --no-bindings
                  --orphan --timestamp=0 --tree=tar=/dev/stdin;
         sudo rm -rf $$tmpdir;
     """, outputs=["$ostree_repo/refs/heads/$out_branch"],
@@ -239,14 +239,13 @@ class Apt(object):
         self.deb_pool_mirrors = deb_pool_mirrors
         self._update_lockfile_rules = set()
 
-        ninja.variable("ostree", "_build/ostree")
         ninja.variable("apt_should_mirror", str(bool(apt_should_mirror)))
 
         self.ninja.add_generator_dep(__file__)
 
         # Get these files added to .gitignore:
-        ninja.add_target("_build/ostree/config")
-        ninja.add_target("_build/ostree/objects")
+        ninja.add_target("%s/config" % ninja.global_vars['ostree_repo'])
+        ninja.add_target("%s/objects" % ninja.global_vars['ostree_repo'])
 
     def write_phony_rules(self):
         self.ninja.build("update-apt-lockfiles", "phony",
