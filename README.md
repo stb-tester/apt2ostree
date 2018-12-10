@@ -7,31 +7,35 @@ apt2ostree is used for building Debian/Ubuntu based ostree images.  It performs
 the same task as debootstrap/multistrap but the output is an ostree tree rather
 than a rootfs in a directory.
 
-Unlike other similar tools it's fast, reproducible, space-efficient, doesn't
-depend on apt/dpkg being installed on the host, is well suited to building
-multiple similar but different images and it allows you to manage package
-updates as you do with your source-code.
+Unlike other similar tools, apt2ostree is fast, reproducible, space-efficient,
+doesn't depend on apt/dpkg being installed on the host, is well suited to
+building multiple similar but different images, and it allows you to
+version-control package updates as you do with your source code.
 
 Features
 ========
 
 * Reproducibility
-    * From a list of packages we perform dependency resolution and save the
-      complete list of all packages, their versions and their SHAs and commit
-      that to git.  Builds from this description are functionally reproducible.
-* Speed - apt2ostree is fast becuase:
-    * We only download and extracts any given deb once.  If that deb is used in
+    * From a list of packages we perform dependency resolution and generate a
+      "lockfile" that contains the complete list of all packages, their
+      versions and their SHAs. You can commit this lockfile to git. Builds from
+      this lockfile are functionally reproducible.
+* Speed - apt2ostree is fast because:
+    * We only download and extract any given deb once.  If that deb is used in
       multiple images it doesn't need to be extracted again.  This saves disk
       space too because the contents of the debs are committed to ostree so they
-      will share disk-space with the built images.
-    * Builds happen in parallel - this falls out of using ninja we can be
-      downloading one deb at the same time as compiling a second image, or
-      performing other build tasks within your build-system.
+      will share disk space with the built images.
+    * Builds happen in parallel (because we use [ninja]). We can be downloading
+      one deb at the same time as compiling a second image, or performing other
+      build tasks within your larger build system.
     * We don't repeat work that we've already done between builds - another
       benefit of using ninja.
     * Combining the contents of the debs is fast because it only touches ostree
       metadata - it doesn't need to read the contents of the files (see also
-      [ostreedev/ostree#1643](https://github.com/ostreedev/ostree/pull/1643)).
+      [ostreedev/ostree#1643]).
+
+[ninja]: https://ninja-build.org/
+[ostreedev/ostree#1643]: https://github.com/ostreedev/ostree/pull/1643
 
 Lockfiles
 =========
@@ -89,7 +93,7 @@ a plain list of package names and versions:
 
 1. It contains MD5, SHA1 and SHA256 fields so we can be certain we're using
    exactly the package we want to be. This is nice and secure without having to
-   faf around with gpg.
+   faff around with gpg.
 2. It (indirectly) contains the URL of the package so we can implement the
    downloading of the packages external to the chroots where they will be
    installed.
@@ -99,9 +103,9 @@ a plain list of package names and versions:
 Example
 =======
 
-See and example project under `examples/nginx` involving building an image
-containing nginx and its dependencies.  The list of packages is defined at the
-top of `configure.py`.
+See an example project under `examples/nginx` which builds an image containing
+nginx and its dependencies. The list of packages is defined at the top of
+`configure.py`.
 
 Usage:
 
@@ -117,9 +121,8 @@ Usage:
     # Build image with ref deb/images/Packages.lock/configured
     ninja
 
-Update the lockfile with:
+Update the lockfile (equivalent to `apt update`):
 
-    # Run this to update the lockfile (equivalent to apt update):
     ninja update-lockfiles
 
 Make the rootfs a part of a normal ostree branch with history, etc.:
@@ -132,7 +135,7 @@ Usage
 
 `apt2ostree` is a Python library that helps write ninja build files.  It is
 intended to be used by a `configure` script written in Python.  This is a very
-flexible albeit unconventional approach.  See the`examples/` directory for
+flexible albeit unconventional approach.  See the `examples/` directory for
 examples.  Currently Python API documentation is a little lacking.
 
 If you don't want to use it as a library you can create a `multistrap` - style
@@ -155,7 +158,7 @@ Dependencies
   and add `$GOPATH/bin` to your `$PATH`
 * [ninja](https://ninja-build.org/) build tool.
 * [Python](https://www.python.org/) - This project was built against Python 2.
-  Patches to make it also work with Python 3 would be greatfully accepted.
+  Patches to make it also work with Python 3 would be gratefully accepted.
 
 Second stage building also requires:
 
@@ -173,8 +176,8 @@ Much like `multistrap` there are two stages:
    a chroot before checking the results back in again.
 
 Building stage 1 is fast and is currently the primary focus of this tool.
-`apt2ostree` contains a naive implementation of stage 2 should be reliable, but
-has various issues:
+`apt2ostree` contains a naive implementation of stage 2 which should be
+reliable, but has various issues:
 
 * It requires superuser privileges - we use `sudo` to check the files out as
   root. A production implementation might prefer to run this using `fakeroot` or
@@ -185,10 +188,10 @@ has various issues:
   the permissions/ownership right.
 * It's slow - we check all the files back into ostree by piping through tar
   back into ostree. This allows tar to be running as root, while ostree still
-  runs as a normal user. If `ostree checkout --require-hardlinks` then we could
-  use `ostree commit --link-checkout-speedup` during checking to speed things
-  up.  Further speedups might be possible with `overlayfs`.
-* I've not tested it building for foreign-architectures with qemu binfmt-misc
+  runs as a normal user. If we used `ostree checkout --require-hardlinks` then
+  we could use `ostree commit --link-checkout-speedup` during checkin to speed
+  things up. Further speedups might be possible with `overlayfs`.
+* I've not tested it building for foreign architectures with qemu binfmt-misc
   support.  It might work, it might not.
 
 All this is a long-winded way of saying that much like with multistrap you
@@ -227,18 +230,18 @@ debootstrap/multistrap
 
 debootstrap and multistrap can both be used to create rootfses that can later
 be committed to ostree.  debootstrap is used as part of the official debian
-installer, multistrap is more targetted toward creating rootfses for embedded
+installer.  multistrap is more targetted toward creating rootfses for embedded
 systems.
 
-Similar to multistrap apt2ostree was designed for building embedded systems
-to be booted on a seperate machine to the build host.
+Similar to multistrap, apt2ostree was designed for building embedded systems
+to be booted on a seperate machine than the build host.
 
 For dependency resolution during package selection apt2ostree uses `aptly`
 rather than `apt`/`dpkg`.  This makes deployment easier because aptly is a
 single statically linked go binary.  The dependency resolution may not be as
 robust as `multistrap`.
 
-Unlike multistrap, but like debootstrap apt2ostree doesn't require apt/dpkg to
+Unlike multistrap, but like debootstrap, apt2ostree doesn't require apt/dpkg to
 be installed on the build host.
 
 apt2ostree is faster - particuarly in the case where you're building multiple
@@ -246,16 +249,16 @@ variants of images or building an updated image because upstream packages have
 been updated.
 
 apt2ostree uses less disk space because it doesn't cache downloaded debs - it
-commits them directly to ostree after downloading.  The disk space used will
-be shared with the built images.
+unpacks them and commits them directly to ostree after downloading. The disk
+space will be shared with the built images.
 
 apt2ostree doesn't currently support generating lockfiles with packages from
 multiple repositories.  This means you can't build an image that pulls from both
 trusty and trusty-updates.  This is a major missing feature that is a high
 priority.
 
-Similar to `multistrap` and to some extent `debootstrap` apt2ostree is generally
-used as part of a larger.
+Similar to `multistrap`, and to some extent `debootstrap`, apt2ostree is
+generally used as part of a larger build system.
 
 Unlike `debootstrap` (and `multistrap`?) apt2ostree is not officially supported
 nor is it affiliated with either the Debian or Ubuntu projects.
@@ -264,10 +267,10 @@ nor is it affiliated with either the Debian or Ubuntu projects.
 can use your existing multistrap configuration files.  See
 `examples/multistrap/multistrap.py` for more information.
 
-`debootstrap` and `multistrap` don't use lockfiles, you get whatever versions
-of the packages that are available at the time you ran the tool.  To update you
-must rerun the tool and see what the difference is in the committed image, so
-you don't have a record of package versions in source control.
+`debootstrap` and `multistrap` don't use lockfiles: you get whatever versions
+of the packages are available at the time you ran the tool. To update you must
+rerun the tool and see what the difference is in the committed image, so you
+don't have a record of package versions in source control.
 
 endless-ostree-builder (EOB)
 ----------------------------
@@ -305,12 +308,14 @@ of package versions in source control.
 History
 =======
 
-apt2ostree was started a [stb-tester.com](https://stb-tester.com) as a way of
-building images for their stb-tester HDMI product.  Our approach of using ninja
-and creating intermediate build images came up in a discussion on the ostree
-mailing list which motivated @wmanley to tidy-up and publish what we've built.
+apt2ostree was started at [stb-tester.com] as a way of building images for
+their stb-tester HDMI product. Our approach of using ninja and creating
+intermediate build images came up in a discussion on the ostree mailing list
+which motivated @wmanley to tidy-up and publish what we've built.
 
 ostree mailing list posts threads here:
 
 * https://mail.gnome.org/archives/ostree-list/2018-October/msg00005.html
 * https://mail.gnome.org/archives/ostree-list/2018-November/msg00000.html
+
+[stb-tester.com]: https://stb-tester.com
