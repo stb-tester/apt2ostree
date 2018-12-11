@@ -61,7 +61,7 @@ def multistrap(config_file, ninja, apt):
     
     def get(section, field, default=None):
         try:
-            return p.get("General", "arch")
+            return p.get(section, field)
         except NoOptionError:
             return default
 
