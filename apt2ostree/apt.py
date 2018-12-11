@@ -258,7 +258,7 @@ class Apt(object):
 
         self.generate_lockfile(
             lockfile, packages, architecture, distribution, archive_url)
-        return self.image_from_lockfile(lockfile)
+        return self.image_from_lockfile(lockfile, architecture)
 
     def build_image(self, lockfile, *args, **kwargs):
         unpacked = self.build_image_unpacked(lockfile, *args, **kwargs)
@@ -291,7 +291,9 @@ class Apt(object):
         self._update_lockfile_rules.update(out)
         return lockfile
 
-    def image_from_lockfile(self, lockfile, architecture="amd64"):
+    def image_from_lockfile(self, lockfile, architecture=None):
+        if architecture is None:
+            architecture = "amd64"
         base = dpkg_base.build(self.ninja, architecture=architecture)
 
         all_data = []
