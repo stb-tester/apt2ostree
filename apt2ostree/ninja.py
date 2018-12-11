@@ -77,7 +77,8 @@ class Ninja(ninja_syntax.Writer):
         super(Ninja, self).variable(key, value, indent)
 
     def build(self, outputs, rule, *args, **kwargs):
-        self.targets.update(ninja_syntax.as_list(outputs))
+        for x in ninja_syntax.as_list(outputs):
+            self.add_target(x)
         return super(Ninja, self).build(outputs, rule, *args, **kwargs)
 
     def rule(self, name, *args, **kwargs):
@@ -114,6 +115,8 @@ class Ninja(ninja_syntax.Writer):
         self.generator_deps.add(filename.replace('.pyc', '.py'))
 
     def add_target(self, target):
+        if not target:
+            raise RuntimeError("Invalid target filename %r" % target)
         self.targets.add(target)
 
     def write_gitignore(self, filename=None):
