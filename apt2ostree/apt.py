@@ -176,7 +176,8 @@ make_dpkg_info = Rule(
         '$builddir/$ref_base/available',
         '$ostree_repo/refs/heads/$ref_base/info'],
     order_only=["$ostree_repo/config"],
-    inputs=["$ostree_repo/refs/heads/$ref_base/control"])
+    inputs=["$ostree_repo/refs/heads/$ref_base/control",
+            "$ostree_repo/refs/heads/$ref_base/data"])
 
 deb_combine_meta = Rule("deb_combine_meta", """\
     set -e;
