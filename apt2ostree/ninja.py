@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import os
 import pipes
 import re
@@ -7,7 +8,7 @@ import textwrap
 
 import ninja_syntax
 
-NINJA_AUTO_VARS = set(["in", "out"])
+NINJA_AUTO_VARS = set(["in", "out", "_args_digest"])
 
 
 class Ninja(ninja_syntax.Writer):
@@ -186,6 +187,12 @@ class Rule(object):
         if v - self.vars:
             raise TypeError("Rule %s got unexpected arguments: %s" %
                             (self.name, ", ".join(v - self.vars)))
+
+        if '_args_digest' in self.vars:
+            s = hashlib.sha256()
+            s.update(str([self.name] + sorted(kwargs.items())))
+            kwargs['_args_digest'] = s.hexdigest()[:7]
+
         if self.outputs:
             outputs.extend(ninja_syntax.expand(x, ninja.global_vars, kwargs)
                            for x in self.outputs)
