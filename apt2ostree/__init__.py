@@ -1,4 +1,4 @@
-from .apt import Apt
-from .ninja import Ninja
+from .apt import Apt, AptSource, ubuntu_xenial
+from .ninja import Ninja, Rule
 
-__all__ = ['Apt', 'Ninja']
+__all__ = ['Apt', 'AptSource', 'Ninja', 'Rule', 'ubuntu_xenial']

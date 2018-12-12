@@ -7,7 +7,7 @@ import sys
 # Needed so we don't need to add apt2ostree to PYTHONPATH for this example to
 # work:
 sys.path.append(os.path.dirname(__file__) + '/../..')
-from apt2ostree import Apt, Ninja
+from apt2ostree import Apt, Ninja, ubuntu_xenial
 
 
 def main(argv):
@@ -29,7 +29,7 @@ def main(argv):
         # The ref will be deb/images/Packages.lock/configured.  A lockfile will
         # be written to `Packages.lock`.  This can be updated with
         # `ninja update-lockfile-Packages.lock`.
-        image = apt.build_image("Packages.lock", ['nginx-core'])
+        image = apt.build_image("Packages.lock", ['nginx-core'], ubuntu_xenial)
 
         # If run `ninja` without specifying a target our image will be built:
         ninja.default(image.filename)

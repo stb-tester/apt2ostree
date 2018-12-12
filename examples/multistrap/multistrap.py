@@ -29,7 +29,7 @@ import sys
 from configparser import NoOptionError, SafeConfigParser
 
 sys.path.append(os.path.dirname(__file__) + '/../..')
-from apt2ostree import Apt, Ninja
+from apt2ostree import Apt, Ninja, AptSource
 
 
 def main(argv):
@@ -67,12 +67,15 @@ def multistrap(config_file, ninja, apt):
 
     section = p.get("General", "aptsources").split()[0]
     
-    image = apt.build_image(
-        "%s.lock" % config_file,
-        packages=get(section, "packages", "").split(),
+    apt_source = AptSource(
         architecture=get("General", "arch"),
         distribution=get(section, "suite"),
         archive_url=get(section, "source"))
+
+    image = apt.build_image(
+        "%s.lock" % config_file,
+        packages=get(section, "packages", "").split(),
+        apt_source=apt_source)
     ninja.default(image.filename)
     return image
 

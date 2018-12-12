@@ -236,6 +236,13 @@ dpkg_configure = Rule(
          pool="console")
 
 
+AptSource = namedtuple(
+    "AptSource", "architecture distribution archive_url")
+
+ubuntu_xenial = AptSource(
+    "amd64", "xenial", "http://archive.ubuntu.com/ubuntu")
+
+
 class Apt(object):
     def __init__(self, ninja, deb_pool_mirrors=None, apt_should_mirror=False):
         if deb_pool_mirrors is None:
@@ -257,17 +264,16 @@ class Apt(object):
         self.ninja.build("update-apt-lockfiles", "phony",
                          inputs=list(self._update_lockfile_rules))
 
-    def build_image_unpacked(self, lockfile, packages, architecture=None,
-                             distribution=None, archive_url=None):
+    def build_image_unpacked(self, lockfile, packages, apt_source):
         """This produces an ostree image
         $ostree_repo/refs/heads/deb/images/$lockfile/unpacked"""
 
-        self.generate_lockfile(
-            lockfile, packages, architecture, distribution, archive_url)
-        return self.image_from_lockfile(lockfile, architecture)
+        self.generate_lockfile(lockfile, packages, apt_source)
+        return self.image_from_lockfile(lockfile, apt_source.architecture)
 
-    def build_image(self, lockfile, *args, **kwargs):
-        unpacked = self.build_image_unpacked(lockfile, *args, **kwargs)
+    def build_image(self, lockfile, packages, apt_source):
+        unpacked = self.build_image_unpacked(
+            lockfile, packages, apt_source)
         c_ref = dpkg_configure.build(
             self.ninja,
             in_branch=unpacked.ref,
@@ -275,25 +281,16 @@ class Apt(object):
         self.ninja.build("image-for-%s" % lockfile, "phony", inputs=c_ref)
         return OstreeRef(c_ref[0])
 
-    def generate_lockfile(
-            self, lockfile, packages=None, architecture=None,
-            distribution=None, archive_url=None):
-        if packages is None:
-            packages = []
-        if architecture is None:
-            architecture = "amd64"
-        if distribution is None:
-            distribution = "xenial"
-        if archive_url is None:
-            archive_url = "http://archive.ubuntu.com/ubuntu"
-
+    def generate_lockfile(self, lockfile, packages, apt_source):
         packages = sorted(packages)
 
         out = update_lockfile.build(
             self.ninja,
+            lockfile=lockfile,
             packages="".join("| " + x for x in packages),
-            architecture=architecture, archive_url=archive_url,
-            distribution=distribution, lockfile=lockfile)
+            architecture=apt_source.architecture,
+            archive_url=apt_source.archive_url,
+            distribution=apt_source.distribution)
         self._update_lockfile_rules.update(out)
         return lockfile
 
