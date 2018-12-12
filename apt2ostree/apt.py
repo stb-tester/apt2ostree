@@ -40,15 +40,37 @@ dpkg_base = Rule(
     "dpkg_base", """\
     set -ex;
     tmpdir=_build/tmp/apt/dpkg-base/$architecture;
+    rm -rf "$$tmpdir";
     mkdir -p $$tmpdir;
     cd $$tmpdir;
-    mkdir -p var/lib/dpkg/info;
+    mkdir -p etc/apt/preferences.d
+             etc/apt/sources.list.d
+             etc/apt/trusted.gpg.d
+             etc/network
+             usr/share/info
+             var/lib/dpkg/info
+             var/cache/apt/archives/partial
+             var/lib/apt/lists/auxfiles
+             var/lib/apt/lists/partial;
     echo 1 >var/lib/dpkg/info/format;
-    echo "$architecture" >var/lib/dpkg/architecture;
-    touch var/lib/dpkg/lock;
-    chmod 0750 var/lib/dpkg/lock;
+    echo "$architecture" >var/lib/dpkg/arch;
+    touch etc/shells
+          var/cache/apt/archives/lock
+          var/lib/dpkg/diversions
+          var/lib/dpkg/lock
+          var/lib/dpkg/lock-frontend
+          var/lib/dpkg/statoverride
+          var/lib/apt/lists/lock
+          usr/share/info/dir;
+    chmod 0640 var/cache/apt/archives/lock
+               var/lib/apt/lists/lock
+               var/lib/dpkg/lock
+               var/lib/dpkg/lock-frontend;
+    chmod 0700 var/cache/apt/archives/partial
+               var/lib/apt/lists/partial;
     cd -;
-    ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$architecture" --tree=dir=$$tmpdir \\
+    ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$architecture"
+        --tree=dir=$$tmpdir
         --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
     rm -rf "$$tmpdir";
     """, restat=True,
