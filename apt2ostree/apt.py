@@ -219,7 +219,10 @@ dpkg_configure = Rule(
         sudo ostree --repo=$ostree_repo checkout --force-copy $in_branch $$TARGET;
         echo "root:x:0:0:root:/root:/bin/bash" | sudo sponge $$TARGET/etc/passwd;
         echo "root:x:0:" | sudo sponge $$TARGET/etc/group;
-        BWRAP="sudo bwrap --bind $$TARGET / --proc /proc --dev /dev --tmpfs /tmp --tmpfs /run --setenv LANG C.UTF-8 --setenv DEBIAN_FRONTEND noninteractive";
+        BWRAP="sudo bwrap --bind $$TARGET / --proc /proc --dev /dev
+            --tmpfs /tmp --tmpfs /run --setenv LANG C.UTF-8
+            --setenv DEBIAN_FRONTEND noninteractive
+            $binfmt_misc_support";
         $$BWRAP /var/lib/dpkg/info/dash.preinst install;
 
         printf '#!/bin/sh\\nexit 101'
@@ -308,10 +311,19 @@ class Apt(object):
         if branch is None:
             assert "unpacked" in unpacked.ref
             branch = unpacked.ref.replace("unpacked", "configured")
+        order_only = []
+        if architecture == "armhf":
+            binfmt_misc_support = \
+                "--ro-bind /usr/bin/qemu-arm-static /usr/bin/qemu-arm-static"
+            order_only.append('/usr/bin/qemu-arm-static')
+        elif architecture in ["amd64", "i686"]:
+            binfmt_misc_support = ""
         configured_ref = dpkg_configure.build(
             self.ninja,
             in_branch=unpacked.ref,
-            out_branch=branch)
+            out_branch=branch,
+            order_only=order_only,
+            binfmt_misc_support=binfmt_misc_support)
         return OstreeRef(configured_ref[0])
 
     def generate_lockfile(self, lockfile, packages, apt_source):
