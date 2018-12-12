@@ -14,9 +14,7 @@ from .ninja import Rule
 from .ostree import ostree_combine, OstreeRef
 
 
-DEB_POOL_MIRRORS = [
-    "http://archive.ubuntu.com/ubuntu",
-    "http://ftp.debian.org/debian/"]
+DEB_POOL_MIRRORS = []
 
 
 update_lockfile = Rule("update_lockfile", """\
@@ -263,6 +261,7 @@ class Apt(object):
             deb_pool_mirrors = DEB_POOL_MIRRORS
 
         self.ninja = ninja
+        self.archive_urls = set()
         self.deb_pool_mirrors = deb_pool_mirrors
         self._update_lockfile_rules = set()
 
@@ -309,6 +308,7 @@ class Apt(object):
     def generate_lockfile(self, lockfile, packages, apt_source):
         packages = sorted(packages)
 
+        self.archive_urls.add(apt_source.archive_url)
         out = update_lockfile.build(
             self.ninja,
             lockfile=lockfile,
@@ -332,6 +332,8 @@ class Apt(object):
 
         with self.ninja.open('_build/deb_pool_mirrors', 'w') as f:
             for x in self.deb_pool_mirrors:
+                f.write(x + "\n")
+            for x in self.archive_urls:
                 f.write(x + "\n")
 
         try:
