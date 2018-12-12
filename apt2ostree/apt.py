@@ -77,6 +77,19 @@ dpkg_base = Rule(
     outputs=["$ostree_repo/refs/heads/deb/dpkg-base/$architecture"],
     order_only=["$ostree_repo/config"])
 
+apt_base = Rule("apt_base", """
+    tmpdir="$$(mktemp -dp $builddir/tmp -t apt_base.XXXXXX)";
+    mkdir -p $$tmpdir/etc/apt/sources.list.d;
+    printf "deb [arch=%s] %s %s %s\\n" $architecture $archive_url $distribution "$components"
+        >$$tmpdir/etc/apt/sources.list.d/apt2ostree.list;
+    ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
+           --tree=dir=$$tmpdir
+           --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
+    rm -rf "$$tmpdir";
+    """,
+    outputs=["$ostree_repo/refs/heads/deb/apt_base/$_args_digest"],
+    order_only=["$ostree_repo/config"], restat=True)
+
 # Ninja will rebuild the target if the contents of the rule changes.  We don't
 # want to redownload a deb just because the list of mirrors has changed, so
 # instead we write _build/deb_pool_mirrors and explicitly **don't** declare a
@@ -275,12 +288,23 @@ class Apt(object):
     def build_image(self, lockfile, packages, apt_source):
         unpacked = self.build_image_unpacked(
             lockfile, packages, apt_source)
-        c_ref = dpkg_configure.build(
+        configured_ref = dpkg_configure.build(
             self.ninja,
             in_branch=unpacked.ref,
             out_branch=unpacked.ref.replace("unpacked", "configured"))
-        self.ninja.build("image-for-%s" % lockfile, "phony", inputs=c_ref)
-        return OstreeRef(c_ref[0])
+        sources_list = apt_base.build(
+            self.ninja, archive_url=apt_source.archive_url,
+            components=apt_source.components,
+            architecture=apt_source.architecture,
+            distribution=apt_source.distribution)
+        complete_ref = ostree_combine.build(
+            self.ninja,
+            inputs=configured_ref + sources_list,
+            branch=unpacked.ref.replace("unpacked", "complete"))
+        self.ninja.build(
+            "image-for-%s" % lockfile, "phony", inputs=complete_ref)
+
+        return OstreeRef(complete_ref[0])
 
     def generate_lockfile(self, lockfile, packages, apt_source):
         packages = sorted(packages)
