@@ -26,10 +26,10 @@ Usage:
 import argparse
 import os
 import sys
-from configparser import NoOptionError, SafeConfigParser
 
 sys.path.append(os.path.dirname(__file__) + '/../..')
 from apt2ostree import Apt, Ninja, AptSource
+from apt2ostree.multistrap import multistrap
 
 
 def main(argv):
@@ -46,7 +46,8 @@ def main(argv):
 
         apt = Apt(ninja)
         for cfg in args.config_file:
-            multistrap(cfg, ninja, apt)
+            image = multistrap(cfg, ninja, apt)
+            ninja.default(image.filename)
 
         apt.write_phony_rules()
 
@@ -54,31 +55,6 @@ def main(argv):
         # artifacts that we no-longer produce:
         ninja.write_gitignore()
 
-
-def multistrap(config_file, ninja, apt):
-    p = SafeConfigParser()
-    p.read(config_file)
-    
-    def get(section, field, default=None):
-        try:
-            return p.get(section, field)
-        except NoOptionError:
-            return default
-
-    section = p.get("General", "aptsources").split()[0]
-    
-    apt_source = AptSource(
-        architecture=get("General", "arch"),
-        distribution=get(section, "suite"),
-        archive_url=get(section, "source"),
-        components=get(section, "components"))
-
-    image = apt.build_image(
-        "%s.lock" % config_file,
-        packages=get(section, "packages", "").split(),
-        apt_source=apt_source)
-    ninja.default(image.filename)
-    return image
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

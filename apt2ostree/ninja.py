@@ -32,6 +32,7 @@ class Ninja(ninja_syntax.Writer):
         self.add_generator_dep(__file__)
         self.add_generator_dep(ninja_syntax.__file__)
         self.add_generator_dep(__file__ + '/../ostree.py')
+        self.add_generator_dep(__file__ + '/../multistrap.py')
 
         self.regenerate_command = regenerate_command
         self.variable("builddir", self.builddir)
