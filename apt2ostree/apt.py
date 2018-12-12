@@ -285,25 +285,34 @@ class Apt(object):
         return self.image_from_lockfile(lockfile, apt_source.architecture)
 
     def build_image(self, lockfile, packages, apt_source):
-        unpacked = self.build_image_unpacked(
+        stage_1 = self.build_image_unpacked(
             lockfile, packages, apt_source)
-        configured_ref = dpkg_configure.build(
-            self.ninja,
-            in_branch=unpacked.ref,
-            out_branch=unpacked.ref.replace("unpacked", "configured"))
+        stage_2 = self.second_stage(stage_1, apt_source.architecture)
         sources_list = apt_base.build(
             self.ninja, archive_url=apt_source.archive_url,
             components=apt_source.components,
             architecture=apt_source.architecture,
             distribution=apt_source.distribution)
-        complete_ref = ostree_combine.build(
+        assert "unpacked" in stage_1.ref
+        complete = OstreeRef(ostree_combine.build(
             self.ninja,
-            inputs=configured_ref + sources_list,
-            branch=unpacked.ref.replace("unpacked", "complete"))
+            inputs=[stage_2.filename] + sources_list,
+            branch=stage_1.ref.replace("unpacked", "complete"))[0])
         self.ninja.build(
-            "image-for-%s" % lockfile, "phony", inputs=complete_ref)
+            "image-for-%s" % lockfile, "phony", inputs=complete.filename)
+        out = OstreeRef(complete[0])
+        out.stage_1 = OstreeRef(stage_1[0])
+        return out
 
-        return OstreeRef(complete_ref[0])
+    def second_stage(self, unpacked, architecture, branch=None):
+        if branch is None:
+            assert "unpacked" in unpacked.ref
+            branch = unpacked.ref.replace("unpacked", "configured")
+        configured_ref = dpkg_configure.build(
+            self.ninja,
+            in_branch=unpacked.ref,
+            out_branch=branch)
+        return OstreeRef(configured_ref[0])
 
     def generate_lockfile(self, lockfile, packages, apt_source):
         packages = sorted(packages)
