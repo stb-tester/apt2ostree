@@ -143,14 +143,17 @@ def vars_in(items):
 
 class Rule(object):
     def __init__(self, name, command, outputs=None, inputs=None,
-                 description=None, order_only=None, **kwargs):
+                 description=None, order_only=None, implicit=None, **kwargs):
         if order_only is None:
             order_only = []
+        if implicit is None:
+            implicit = []
         self.name = name
         self.command = textwrap.dedent(command)
         self.outputs = outputs
         self.inputs = inputs
         self.order_only = order_only
+        self.implicit = implicit
         self.kwargs = kwargs
 
         self.vars = vars_in(command).union(vars_in(inputs)).union(vars_in(outputs))
@@ -168,6 +171,8 @@ class Rule(object):
             inputs = []
         if order_only is None:
             order_only = []
+        if implicit is None:
+            implicit = []
         ninja.newline()
         ninja.rule(self.name, self.command, description=self.description,
                    **self.kwargs)
@@ -185,6 +190,9 @@ class Rule(object):
         if self.inputs:
             inputs.extend(ninja_syntax.expand(x, ninja.global_vars, kwargs)
                           for x in self.inputs)
+        if self.implicit:
+            inputs.extend(ninja_syntax.expand(x, ninja.global_vars, kwargs)
+                          for x in self.implicit)
 
         ninja.newline()
         return ninja.build(
