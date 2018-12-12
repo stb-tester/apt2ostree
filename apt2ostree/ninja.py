@@ -90,6 +90,8 @@ class Ninja(ninja_syntax.Writer):
                     if line:
                         self.comment(line)
         for x in ninja_syntax.as_list(outputs):
+            if x in self.targets:
+                raise RuntimeError("Multiple targets generate %s" % x)
             self.add_target(x)
         return super(Ninja, self).build(outputs, rule, *args, **kwargs)
 
