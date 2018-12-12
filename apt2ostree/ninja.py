@@ -25,9 +25,9 @@ class Ninja(ninja_syntax.Writer):
         self.rules = {}
         self.generator_deps = set()
 
-        self.add_generator_dep(os.path.relpath(__file__))
-        self.add_generator_dep(os.path.relpath(ninja_syntax.__file__))
-        self.add_generator_dep(os.path.relpath(__file__ + '/../ostree.py'))
+        self.add_generator_dep(__file__)
+        self.add_generator_dep(ninja_syntax.__file__)
+        self.add_generator_dep(__file__ + '/../ostree.py')
 
         self.regenerate_command = regenerate_command
         self.variable("builddir", self.builddir)
@@ -113,7 +113,8 @@ class Ninja(ninja_syntax.Writer):
 
     def add_generator_dep(self, filename):
         """Cause configure to be rerun if changes are made to filename"""
-        self.generator_deps.add(filename.replace('.pyc', '.py'))
+        self.generator_deps.add(
+            os.path.relpath(filename).replace('.pyc', '.py'))
 
     def add_target(self, target):
         if not target:
