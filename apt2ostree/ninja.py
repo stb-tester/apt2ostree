@@ -151,10 +151,10 @@ class Rule(object):
             implicit = []
         self.name = name
         self.command = textwrap.dedent(command)
-        self.outputs = outputs
-        self.inputs = inputs
-        self.order_only = order_only
-        self.implicit = implicit
+        self.outputs = ninja_syntax.as_list(outputs)
+        self.inputs = ninja_syntax.as_list(inputs)
+        self.order_only = ninja_syntax.as_list(order_only)
+        self.implicit = ninja_syntax.as_list(implicit)
         self.kwargs = kwargs
 
         self.vars = vars_in(command).union(vars_in(inputs)).union(vars_in(outputs))
