@@ -26,7 +26,7 @@ update_lockfile = Rule("update_lockfile", """\
         -architectures="$architecture"
         -filter "Priority (required) | Priority (Important) $packages"
         -filter-with-deps
-        "$out" "$archive_url" "$distribution";
+        "$out" "$archive_url" "$distribution" $components;
     aptly mirror update -list-without-downloading "$out" >$lockfile~;
     aptly mirror drop "$out";
     if cmp $lockfile~ $lockfile; then
@@ -237,10 +237,11 @@ dpkg_configure = Rule(
 
 
 AptSource = namedtuple(
-    "AptSource", "architecture distribution archive_url")
+    "AptSource", "architecture distribution archive_url components")
 
 ubuntu_xenial = AptSource(
-    "amd64", "xenial", "http://archive.ubuntu.com/ubuntu")
+    "amd64", "xenial", "http://archive.ubuntu.com/ubuntu",
+    "main restricted universe multiverse")
 
 
 class Apt(object):
@@ -290,7 +291,8 @@ class Apt(object):
             packages="".join("| " + x for x in packages),
             architecture=apt_source.architecture,
             archive_url=apt_source.archive_url,
-            distribution=apt_source.distribution)
+            distribution=apt_source.distribution,
+            components=apt_source.components)
         self._update_lockfile_rules.update(out)
         return lockfile
 

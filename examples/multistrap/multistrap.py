@@ -70,7 +70,8 @@ def multistrap(config_file, ninja, apt):
     apt_source = AptSource(
         architecture=get("General", "arch"),
         distribution=get(section, "suite"),
-        archive_url=get(section, "source"))
+        archive_url=get(section, "source"),
+        components=get(section, "components"))
 
     image = apt.build_image(
         "%s.lock" % config_file,
