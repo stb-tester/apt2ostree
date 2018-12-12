@@ -27,6 +27,7 @@ class Ninja(ninja_syntax.Writer):
 
         self.add_generator_dep(os.path.relpath(__file__))
         self.add_generator_dep(os.path.relpath(ninja_syntax.__file__))
+        self.add_generator_dep(os.path.relpath(__file__ + '/../ostree.py'))
 
         self.regenerate_command = regenerate_command
         self.variable("builddir", self.builddir)

@@ -11,6 +11,7 @@ import urllib
 from collections import namedtuple
 
 from .ninja import Rule
+from .ostree import ostree_combine, OstreeRef
 
 
 DEB_POOL_MIRRORS = [
@@ -170,14 +171,6 @@ deb_combine_meta = Rule("deb_combine_meta", """\
     order_only=["$ostree_repo/config"],
     description="var/lib/dpkg/$meta for $pkgs_digest")
 
-ostree_combine = Rule(
-    "ostree_combine", """\
-        echo $in
-         | sed 's,$ostree_repo/refs/heads/,--tree=ref=,g'
-         | xargs ostree --repo=$ostree_repo commit -b $branch --no-bindings --orphan --timestamp=0;""",
-    outputs=["$ostree_repo/refs/heads/$branch"],
-    order_only=["$ostree_repo/config"],
-    description="Ostree Combine for $branch")
 
 # This is a really naive implementation calling `dpkg --configure -a` in a
 # container using `bwrap` and `sudo`.  A proper implementation will be
@@ -218,16 +211,6 @@ dpkg_configure = Rule(
          # pool console is used because the above involves sudo which might need
          # to ask for a password
          pool="console")
-
-
-class OstreeRef(namedtuple("OstreeImage", "filename")):
-    @property
-    def ref(self):
-        return self.filename.split("/refs/heads/")[1]
-
-    @property
-    def repo(self):
-        return self.filename.split("/refs/heads/")[0]
 
 
 class Apt(object):
