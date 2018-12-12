@@ -8,9 +8,10 @@ MultistrapConfig = namedtuple(
     "MultistrapConfig", "apt_source packages")
 
 
-def read_multistrap_config(config_file):
+def read_multistrap_config(ninja, config_file):
     p = SafeConfigParser()
-    p.read(config_file)
+    with ninja.open(config_file) as f:
+        p.readfp(f)
 
     def get(section, field, default=None):
         try:
@@ -30,7 +31,7 @@ def read_multistrap_config(config_file):
 
 
 def multistrap(config_file, ninja, apt):
-    cfg = read_multistrap_config(config_file)
+    cfg = read_multistrap_config(ninja, config_file)
     return apt.build_image("%s.lock" % config_file,
                            packages=cfg.packages,
                            apt_source=cfg.apt_source)
