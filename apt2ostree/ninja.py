@@ -14,13 +14,14 @@ NINJA_AUTO_VARS = set(["in", "out", "_args_digest"])
 
 class Ninja(ninja_syntax.Writer):
     builddir = "_build"
-    ninjafile = "build.ninja"
 
-    def __init__(self, regenerate_command=None, width=78, debug=True):
+    def __init__(self, regenerate_command=None, width=78, debug=True,
+                 ninjafile="build.ninja"):
         if regenerate_command is None:
             regenerate_command = sys.argv
 
         self.debug = debug
+        self.ninjafile = ninjafile
 
         output = open(self.ninjafile + '~', 'w')
         super(Ninja, self).__init__(output, width)

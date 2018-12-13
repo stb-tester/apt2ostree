@@ -35,11 +35,12 @@ from apt2ostree.multistrap import multistrap
 def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("--ostree-repo", default="_build/ostree")
+    parser.add_argument("-o", "--output", default="build.ninja")
     parser.add_argument(
         "config_file", nargs="+", help="multistrap config files")
     args = parser.parse_args(argv[1:])
 
-    with Ninja(argv) as ninja:
+    with Ninja(argv, ninjafile=args.output) as ninja:
         ninja.add_generator_dep(__file__)
 
         ninja.variable("ostree_repo", os.path.relpath(args.ostree_repo))
