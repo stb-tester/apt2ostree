@@ -40,7 +40,7 @@ class Ninja(ninja_syntax.Writer):
         self.build(".FORCE", "phony")
 
         # Write a reconfigure script to rememeber arguments passed to configure:
-        reconfigure = "%s/reconfigure" % self.builddir
+        reconfigure = "%s/reconfigure-%s" % (self.builddir, ninjafile)
         self.add_target(reconfigure)
         try:
             os.mkdir(self.builddir)
@@ -52,7 +52,7 @@ class Ninja(ninja_syntax.Writer):
                 shquote(["./" + os.path.relpath(self.regenerate_command[0])] +
                         self.regenerate_command[1:])))
         os.chmod(reconfigure, 0755)
-        self.rule("configure", "$builddir/reconfigure", generator=True)
+        self.rule("configure", reconfigure, generator=True)
 
         self.add_target("%s/.ninja_deps" % self.builddir)
         self.add_target("%s/.ninja_log" % self.builddir)
