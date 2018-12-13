@@ -256,6 +256,11 @@ AptSource = namedtuple(
 ubuntu_xenial = AptSource(
     "amd64", "xenial", "http://archive.ubuntu.com/ubuntu",
     "main restricted universe multiverse")
+ubuntu_xenial_armhf = AptSource(
+    "armhf", "xenial", "http://ports.ubuntu.com/ubuntu-ports",
+    "main restricted universe multiverse")
+ubuntu_bionic = ubuntu_xenial._replace(distribution="bionic")
+ubuntu_bionic_armhf = ubuntu_xenial_armhf._replace(distribution="bionic")
 
 
 class Apt(object):
