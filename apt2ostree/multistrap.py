@@ -30,8 +30,9 @@ def read_multistrap_config(ninja, config_file):
     return MultistrapConfig(apt_source, get(section, "packages", "").split())
 
 
-def multistrap(config_file, ninja, apt):
+def multistrap(config_file, ninja, apt, unpack_only=False):
     cfg = read_multistrap_config(ninja, config_file)
     return apt.build_image("%s.lock" % config_file,
                            packages=cfg.packages,
-                           apt_source=cfg.apt_source)
+                           apt_source=cfg.apt_source,
+                           unpack_only=unpack_only)

@@ -280,31 +280,28 @@ class Apt(object):
         self.ninja.build("update-apt-lockfiles", "phony",
                          inputs=list(self._update_lockfile_rules))
 
-    def build_image_unpacked(self, lockfile, packages, apt_source):
-        """This produces an ostree image
-        $ostree_repo/refs/heads/deb/images/$lockfile/unpacked"""
-
+    def build_image(self, lockfile, packages, apt_source, unpack_only=False):
         self.generate_lockfile(lockfile, packages, apt_source)
-        return self.image_from_lockfile(lockfile, apt_source.architecture)
-
-    def build_image(self, lockfile, packages, apt_source):
-        stage_1 = self.build_image_unpacked(
-            lockfile, packages, apt_source)
-        stage_2 = self.second_stage(stage_1, apt_source.architecture)
+        stage_1 = self.image_from_lockfile(lockfile, apt_source.architecture)
         sources_list = apt_base.build(
             self.ninja, archive_url=apt_source.archive_url,
             components=apt_source.components,
             architecture=apt_source.architecture,
             distribution=apt_source.distribution)
-        assert "unpacked" in stage_1.ref
-        complete = OstreeRef(ostree_combine.build(
-            self.ninja,
-            inputs=[stage_2.filename] + sources_list,
-            branch=stage_1.ref.replace("unpacked", "complete"))[0])
-        self.ninja.build(
-            "image-for-%s" % lockfile, "phony", inputs=complete.filename)
-        out = OstreeRef(complete[0])
+        if not unpack_only:
+            out = stage_1
+        else:
+            stage_2 = self.second_stage(stage_1, apt_source.architecture)
+            assert "unpacked" in stage_1.ref
+            complete = OstreeRef(ostree_combine.build(
+                self.ninja,
+                inputs=[stage_2.filename] + sources_list,
+                branch=stage_1.ref.replace("unpacked", "complete"))[0])
+            self.ninja.build(
+                "image-for-%s" % lockfile, "phony", inputs=complete.filename)
+            out = OstreeRef(complete[0])
         out.stage_1 = OstreeRef(stage_1[0])
+        out.sources_list = sources_list
         return out
 
     def second_stage(self, unpacked, architecture, branch=None):
