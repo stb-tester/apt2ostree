@@ -318,6 +318,10 @@ class Apt(object):
             order_only.append('/usr/bin/qemu-arm-static')
         elif architecture in ["amd64", "i686"]:
             binfmt_misc_support = ""
+        else:
+            assert False, ("binfmt_misc support for architecture %r not "
+                           "implemented in apt2ostree.  Modify lines above to "
+                           "add support if possible.")
         configured_ref = dpkg_configure.build(
             self.ninja,
             in_branch=unpacked.ref,

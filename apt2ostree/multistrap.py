@@ -22,7 +22,7 @@ def read_multistrap_config(ninja, config_file):
     section = p.get("General", "aptsources").split()[0]
 
     apt_source = AptSource(
-        architecture=get("General", "arch"),
+        architecture=get("General", "arch") or "amd64",
         distribution=get(section, "suite"),
         archive_url=get(section, "source"),
         components=get(section, "components"))
