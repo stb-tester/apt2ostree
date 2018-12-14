@@ -293,7 +293,7 @@ class Apt(object):
             components=apt_source.components,
             architecture=apt_source.architecture,
             distribution=apt_source.distribution)[0])
-        if not unpack_only:
+        if unpack_only:
             out = stage_1
         else:
             stage_2 = self.second_stage(stage_1, apt_source.architecture)
