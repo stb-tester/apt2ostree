@@ -151,10 +151,15 @@ make_dpkg_info = Rule(
         tmpdir=$builddir/tmp/make_dpkg_info/$sha256sum;
         rm -rf "$$tmpdir";
         mkdir -p $$tmpdir/out/var/lib/dpkg/info;
+        ostree --repo=$ostree_repo checkout --repo=$ostree_repo -UH "$ref_base/control" "$$tmpdir/control";
+        multi_arch=$$(awk '/^Multi-Arch:/ {print $$2}' $$tmpdir/control/control);
+        if [ "$$multi_arch" = "same" ]; then
+            architecture=$$(awk '/^Architecture:/ {print $$2}' $$tmpdir/control/control);
+            suffix=":$$architecture";
+        fi;
         ostree --repo=$ostree_repo ls -R $ref_base/data --nul-filenames-only
         | tr '\\0' '\\n' 
-        | sed 's,^/$$,/.,' >$$tmpdir/out/var/lib/dpkg/info/$pkgname.list;
-        ostree --repo=$ostree_repo checkout --repo=$ostree_repo -UH "$ref_base/control" "$$tmpdir/control";
+        | sed 's,^/$$,/.,' >$$tmpdir/out/var/lib/dpkg/info/$pkgname$$suffix.list;
         cd "$$tmpdir";
         for x in conffiles
                  config
@@ -168,7 +173,7 @@ make_dpkg_info = Rule(
                  templates
                  triggers; do
             if [ -e "control/$$x" ]; then
-                mv "control/$$x" "out/var/lib/dpkg/info/$pkgname.$$x";
+                mv "control/$$x" "out/var/lib/dpkg/info/$pkgname$$suffix.$$x";
             fi;
         done;
         ( cat control/control; echo Status: install ok unpacked; echo ) >status;
