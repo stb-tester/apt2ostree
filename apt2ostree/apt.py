@@ -288,11 +288,11 @@ class Apt(object):
     def build_image(self, lockfile, packages, apt_source, unpack_only=False):
         self.generate_lockfile(lockfile, packages, apt_source)
         stage_1 = self.image_from_lockfile(lockfile, apt_source.architecture)
-        sources_list = apt_base.build(
+        sources_list = OstreeRef(apt_base.build(
             self.ninja, archive_url=apt_source.archive_url,
             components=apt_source.components,
             architecture=apt_source.architecture,
-            distribution=apt_source.distribution)
+            distribution=apt_source.distribution)[0])
         if not unpack_only:
             out = stage_1
         else:
@@ -300,7 +300,7 @@ class Apt(object):
             assert "unpacked" in stage_1.ref
             complete = OstreeRef(ostree_combine.build(
                 self.ninja,
-                inputs=[stage_2.filename] + sources_list,
+                inputs=[stage_2.filename, sources_list.filename],
                 branch=stage_1.ref.replace("unpacked", "complete"))[0])
             self.ninja.build(
                 "image-for-%s" % lockfile, "phony", inputs=complete.filename)
