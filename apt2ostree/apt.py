@@ -196,6 +196,30 @@ make_dpkg_info = Rule(
     inputs=["$ostree_repo/refs/heads/$ref_base/control",
             "$ostree_repo/refs/heads/$ref_base/data"])
 
+do_usrmove = Rule(
+    "do_usrmove", """\
+    set -ex;
+    mkdir -p $builddir/tmp/do_usrmove;
+    tmpdir=$builddir/tmp/do_usrmove/$$(systemd-escape $in_branch);
+    rm -rf "$$tmpdir";
+    ostree --repo=$ostree_repo checkout -UH $in_branch "$$tmpdir";
+    ostree --repo=$ostree_repo checkout -UH :$in_branch:bin "$$tmpdir/usr/bin" --union || true;
+    ostree --repo=$ostree_repo checkout -UH :$in_branch:sbin "$$tmpdir/usr/sbin" --union || true;
+    ostree --repo=$ostree_repo checkout -UH :$in_branch:lib "$$tmpdir/usr/lib" --union || true;
+
+    rm -rf $$tmpdir/bin $$tmpdir/sbin $$tmpdir/lib;
+    ln -s usr/bin $$tmpdir/bin;
+    ln -s usr/lib $$tmpdir/lib;
+    ln -s usr/sbin $$tmpdir/sbin;
+
+    ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
+           --no-bindings --orphan --timestamp=0 --tree=dir=$$tmpdir;
+    """,
+    inputs=["$ostree_repo/refs/heads/$in_branch"],
+    output_type=OstreeRef,
+    outputs=["$ostree_repo/refs/heads/$out_branch"],
+    description="usrmove $in_branch")
+
 deb_combine_meta = Rule(
     "deb_combine_meta", """\
     set -e;
@@ -295,9 +319,11 @@ class Apt(object):
         self.ninja.build("update-apt-lockfiles", "phony",
                          inputs=list(self._update_lockfile_rules))
 
-    def build_image(self, lockfile, packages, apt_source, unpack_only=False):
+    def build_image(self, lockfile, packages, apt_source, unpack_only=False,
+                    usrmove=False):
         self.generate_lockfile(lockfile, packages, apt_source)
-        stage_1 = self.image_from_lockfile(lockfile, apt_source.architecture)
+        stage_1 = self.image_from_lockfile(
+            lockfile, apt_source.architecture, usrmove)
         sources_list = apt_base.build(
             self.ninja, archive_url=apt_source.archive_url,
             components=apt_source.components,
@@ -357,7 +383,7 @@ class Apt(object):
         self._update_lockfile_rules.update(out)
         return lockfile
 
-    def image_from_lockfile(self, lockfile, architecture=None):
+    def image_from_lockfile(self, lockfile, architecture=None, usrmove=False):
         if architecture is None:
             architecture = "amd64"
         base = dpkg_base.build(self.ninja, architecture=architecture)
@@ -386,6 +412,11 @@ class Apt(object):
                         self.ninja, sha256sum=pkg['SHA256'], filename=filename,
                         aptly_pool_filename=aptly_pool_filename,
                         ref_base=ref_base)
+                    if usrmove:
+                        data = do_usrmove.build(
+                            self.ninja,
+                            in_branch=data.ref,
+                            out_branch=data.ref + '-usrmove')
                     all_data.append(data.filename)
                     status, available, info = make_dpkg_info.build(
                         self.ninja, sha256sum=pkg['SHA256'],
