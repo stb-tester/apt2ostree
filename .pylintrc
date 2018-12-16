@@ -1,0 +1,25 @@
+[MASTER]
+persistent=no
+
+[REPORTS]
+msg-template={path}:{line}:{column}: [{msg_id}({symbol}), {obj}] {msg}
+output-format=colorized
+reports=no
+
+[MESSAGES CONTROL]
+disable=
+  invalid-name,
+  missing-docstring,
+  no-else-return,
+  too-few-public-methods,
+  too-many-arguments,
+  too-many-branches,
+  too-many-instance-attributes,
+  too-many-locals,
+  too-many-variables,
+
+[VARIABLES]
+dummy-variables-rgx=_
+
+[FORMAT]
+ignore-long-lines=https?://

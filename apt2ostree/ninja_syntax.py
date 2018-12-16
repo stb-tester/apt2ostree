@@ -7,11 +7,15 @@ just a helpful utility for build-file-generation systems that already
 use Python.
 """
 
+# pylint:skip-file
+
 import re
 import textwrap
 
+
 def escape_path(word):
     return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
+
 
 class Writer(object):
     def __init__(self, output, width=78):
@@ -21,7 +25,7 @@ class Writer(object):
     def newline(self):
         self.output.write('\n')
 
-    def comment(self, text, has_path=False):
+    def comment(self, text):
         for line in textwrap.wrap(text, self.width - 2, break_long_words=False,
                                   break_on_hyphens=False):
             self.output.write('# ' + line + '\n')
@@ -190,4 +194,3 @@ def expand(string, vars, local_vars={}):
             return '$'
         return local_vars.get(var, vars.get(var, ''))
     return re.sub(r'\$(\$|\w*)', exp, string)
-

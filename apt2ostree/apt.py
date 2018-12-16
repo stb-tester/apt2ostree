@@ -1,12 +1,7 @@
 #!/usr/bin/python
 
 import errno
-import hashlib
 import os
-import pipes
-import re
-import sys
-import textwrap
 import urllib
 from collections import namedtuple
 
@@ -75,7 +70,8 @@ dpkg_base = Rule(
     outputs=["$ostree_repo/refs/heads/deb/dpkg-base/$architecture"],
     order_only=["$ostree_repo/config"])
 
-apt_base = Rule("apt_base", """
+apt_base = Rule(
+    "apt_base", """\
     tmpdir="$$(mktemp -dp $builddir/tmp -t apt_base.XXXXXX)";
     mkdir -p $$tmpdir/etc/apt/sources.list.d;
     printf "deb [arch=%s] %s %s %s\\n" $architecture $archive_url $distribution "$components"
@@ -134,11 +130,12 @@ download_deb = Rule(
             mv $$tmpdir/deb "$builddir/apt/mirror/$filename";
         fi;
         rm -rf $$tmpdir;
-        """, restat=True,
-        outputs=['$ostree_repo/refs/heads/$ref_base/data',
-                 '$ostree_repo/refs/heads/$ref_base/control'],
-        order_only=["$ostree_repo/config"],
-        description="Download $aptly_pool_filename", pool="console")
+    """,
+    restat=True,
+    outputs=['$ostree_repo/refs/heads/$ref_base/data',
+             '$ostree_repo/refs/heads/$ref_base/control'],
+    order_only=["$ostree_repo/config"],
+    description="Download $aptly_pool_filename", pool="console")
 
 make_dpkg_info = Rule(
     "make_dpkg_info", """\
@@ -195,7 +192,8 @@ make_dpkg_info = Rule(
     inputs=["$ostree_repo/refs/heads/$ref_base/control",
             "$ostree_repo/refs/heads/$ref_base/data"])
 
-deb_combine_meta = Rule("deb_combine_meta", """\
+deb_combine_meta = Rule(
+    "deb_combine_meta", """\
     set -e;
     tmpdir=$builddir/tmp/deb_combine_$meta/$pkgs_digest;
     rm -rf "$$tmpdir";
@@ -247,12 +245,13 @@ dpkg_configure = Rule(
         | ostree --repo=$ostree_repo commit --branch $out_branch --no-bindings
                  --orphan --timestamp=0 --tree=tar=/dev/stdin;
         sudo rm -rf $$tmpdir;
-    """, outputs=["$ostree_repo/refs/heads/$out_branch"],
-         inputs=["$ostree_repo/refs/heads/$in_branch"],
-         order_only=["$ostree_repo/config"],
-         # pool console is used because the above involves sudo which might need
-         # to ask for a password
-         pool="console")
+    """,
+    outputs=["$ostree_repo/refs/heads/$out_branch"],
+    inputs=["$ostree_repo/refs/heads/$in_branch"],
+    order_only=["$ostree_repo/config"],
+    # pool console is used because the above involves sudo which might need
+    # to ask for a password
+    pool="console")
 
 
 AptSource = namedtuple(
@@ -372,17 +371,19 @@ class Apt(object):
             with self.ninja.open(lockfile) as f:
                 for pkg in parse_packages(f):
                     filename = urllib.unquote(pkg['Filename'])
-                    aptly_pool_filename="%s/%s/%s_%s" % (
-                            pkg['SHA256'][:2], pkg['SHA256'][2:4],
-                            pkg['SHA256'][4:], os.path.basename(filename))
-                    ref_base = "deb/pool/" + aptly_pool_filename.replace('+', '_').replace('~', '_')
-                    data, control = download_deb.build(
+                    aptly_pool_filename = "%s/%s/%s_%s" % (
+                        pkg['SHA256'][:2], pkg['SHA256'][2:4],
+                        pkg['SHA256'][4:], os.path.basename(filename))
+                    ref_base = ("deb/pool/" + aptly_pool_filename
+                                .replace('+', '_').replace('~', '_'))
+                    data, _ = download_deb.build(
                         self.ninja, sha256sum=pkg['SHA256'], filename=filename,
-                        aptly_pool_filename=aptly_pool_filename, ref_base=ref_base)
+                        aptly_pool_filename=aptly_pool_filename,
+                        ref_base=ref_base)
                     all_data.append(data)
                     status, available, info = make_dpkg_info.build(
-                        self.ninja, sha256sum=pkg['SHA256'], pkgname=pkg['Package'],
-                        ref_base=ref_base)
+                        self.ninja, sha256sum=pkg['SHA256'],
+                        pkgname=pkg['Package'], ref_base=ref_base)
                     all_status.append(status)
                     all_available.append(available)
                     all_info.append(info)
@@ -438,7 +439,3 @@ def parse_packages(stream):
         else:
             label, data = line.split(': ', 1)
             pkg[label] = data.strip()
-
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv))

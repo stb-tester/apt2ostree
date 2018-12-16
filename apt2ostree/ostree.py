@@ -23,7 +23,8 @@ ostree_combine = Rule(
     "ostree_combine", """\
         echo $in
          | sed 's,$ostree_repo/refs/heads/,--tree=ref=,g'
-         | xargs ostree --repo=$ostree_repo commit -b $branch --no-bindings --orphan --timestamp=0;""",
+         | xargs ostree --repo=$ostree_repo commit -b $branch --no-bindings
+                        --orphan --timestamp=0;""",
     outputs=["$ostree_repo/refs/heads/$branch"],
     order_only=["$ostree_repo/config"],
     description="Ostree Combine for $branch")
