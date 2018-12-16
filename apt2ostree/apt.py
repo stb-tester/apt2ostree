@@ -135,7 +135,7 @@ download_deb = Rule(
     outputs=['$ostree_repo/refs/heads/$ref_base/data',
              '$ostree_repo/refs/heads/$ref_base/control'],
     order_only=["$ostree_repo/config"],
-    description="Download $aptly_pool_filename", pool="console")
+    description="Download $aptly_pool_filename")
 
 make_dpkg_info = Rule(
     "make_dpkg_info", """\
