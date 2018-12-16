@@ -160,7 +160,8 @@ def vars_in(items):
 
 class Rule(object):
     def __init__(self, name, command, outputs=None, inputs=None,
-                 description=None, order_only=None, implicit=None, **kwargs):
+                 description=None, order_only=None, implicit=None,
+                 output_type=None, **kwargs):
         if order_only is None:
             order_only = []
         if implicit is None:
@@ -171,6 +172,7 @@ class Rule(object):
         self.inputs = ninja_syntax.as_list(inputs)
         self.order_only = ninja_syntax.as_list(order_only)
         self.implicit = ninja_syntax.as_list(implicit)
+        self.output_type = output_type
         self.kwargs = kwargs
 
         self.vars = vars_in(command).union(vars_in(inputs)).union(vars_in(outputs))
@@ -218,10 +220,18 @@ class Rule(object):
                           for x in self.implicit)
 
         ninja.newline()
-        return ninja.build(
+        outputs = ninja.build(
             outputs, self.name, inputs=inputs,
             implicit=implicit, order_only=self.order_only + order_only,
             implicit_outputs=implicit_outputs, pool=pool, variables=kwargs)
+        if self.output_type:
+            if isinstance(self.output_type, tuple):
+                assert len(outputs) == len(self.output_type)
+                outputs = tuple(t(x) for t, x in zip(self.output_type, outputs))
+            else:
+                assert len(outputs) == 1
+                outputs = self.output_type(outputs[0])
+        return outputs
 
 
 def shquote(v):

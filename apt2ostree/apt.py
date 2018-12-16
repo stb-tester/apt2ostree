@@ -67,6 +67,7 @@ dpkg_base = Rule(
         --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
     rm -rf "$$tmpdir";
     """, restat=True,
+    output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/deb/dpkg-base/$architecture"],
     order_only=["$ostree_repo/config"])
 
@@ -81,6 +82,7 @@ apt_base = Rule(
            --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
     rm -rf "$$tmpdir";
     """,
+    output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/deb/apt_base/$_args_digest"],
     order_only=["$ostree_repo/config"], restat=True)
 
@@ -132,6 +134,7 @@ download_deb = Rule(
         rm -rf $$tmpdir;
     """,
     restat=True,
+    output_type=(OstreeRef, OstreeRef),
     outputs=['$ostree_repo/refs/heads/$ref_base/data',
              '$ostree_repo/refs/heads/$ref_base/control'],
     order_only=["$ostree_repo/config"],
@@ -184,6 +187,7 @@ make_dpkg_info = Rule(
         rm -rf "$$tmpdir";
     """,
     restat=True,
+    output_type=(str, str, OstreeRef),
     outputs=[
         '$builddir/$ref_base/status',
         '$builddir/$ref_base/available',
@@ -204,6 +208,7 @@ deb_combine_meta = Rule(
         --owner-uid=0 --owner-gid=0 --no-xattrs;
     rm -rf "$$tmpdir";
     """,
+    output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/deb/images/$pkgs_digest/$meta"],
     order_only=["$ostree_repo/config"],
     description="var/lib/dpkg/$meta for $pkgs_digest")
@@ -246,6 +251,7 @@ dpkg_configure = Rule(
                  --orphan --timestamp=0 --tree=tar=/dev/stdin;
         sudo rm -rf $$tmpdir;
     """,
+    output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/$out_branch"],
     inputs=["$ostree_repo/refs/heads/$in_branch"],
     order_only=["$ostree_repo/config"],
@@ -292,24 +298,24 @@ class Apt(object):
     def build_image(self, lockfile, packages, apt_source, unpack_only=False):
         self.generate_lockfile(lockfile, packages, apt_source)
         stage_1 = self.image_from_lockfile(lockfile, apt_source.architecture)
-        sources_list = OstreeRef(apt_base.build(
+        sources_list = apt_base.build(
             self.ninja, archive_url=apt_source.archive_url,
             components=apt_source.components,
             architecture=apt_source.architecture,
-            distribution=apt_source.distribution)[0])
+            distribution=apt_source.distribution)
         if unpack_only:
             out = stage_1
         else:
             stage_2 = self.second_stage(stage_1, apt_source.architecture)
             assert "unpacked" in stage_1.ref
-            complete = OstreeRef(ostree_combine.build(
+            complete = ostree_combine.build(
                 self.ninja,
                 inputs=[stage_2.filename, sources_list.filename],
-                branch=stage_1.ref.replace("unpacked", "complete"))[0])
+                branch=stage_1.ref.replace("unpacked", "complete"))
             self.ninja.build(
                 "image-for-%s" % lockfile, "phony", inputs=complete.filename)
-            out = OstreeRef(complete[0])
-        out.stage_1 = OstreeRef(stage_1[0])
+            out = complete
+        out.stage_1 = stage_1
         out.sources_list = sources_list
         return out
 
@@ -334,7 +340,7 @@ class Apt(object):
             out_branch=branch,
             order_only=order_only,
             binfmt_misc_support=binfmt_misc_support)
-        return OstreeRef(configured_ref[0])
+        return configured_ref
 
     def generate_lockfile(self, lockfile, packages, apt_source):
         packages = sorted(packages)
@@ -380,13 +386,13 @@ class Apt(object):
                         self.ninja, sha256sum=pkg['SHA256'], filename=filename,
                         aptly_pool_filename=aptly_pool_filename,
                         ref_base=ref_base)
-                    all_data.append(data)
+                    all_data.append(data.filename)
                     status, available, info = make_dpkg_info.build(
                         self.ninja, sha256sum=pkg['SHA256'],
                         pkgname=pkg['Package'], ref_base=ref_base)
                     all_status.append(status)
                     all_available.append(available)
-                    all_info.append(info)
+                    all_info.append(info.filename)
         except IOError as e:
             # lockfile hasn't been created yet.  Presumably it will be created
             # by running `ninja update-apt-lockfiles` soon so this isn't a fatal
@@ -411,14 +417,15 @@ class Apt(object):
             self.ninja, inputs=all_available,
             pkgs_digest=digest, meta="available")
 
-        image, = ostree_combine.build(
+        image = ostree_combine.build(
             self.ninja,
-            inputs=base + dpkg_infos + dpkg_status + dpkg_available + rootfs,
+            inputs=[base.filename, dpkg_infos.filename, dpkg_status.filename,
+                    dpkg_available.filename, rootfs.filename],
             implicit=lockfile,
             branch="deb/images/%s/unpacked" % digest)
         self.ninja.build("unpacked-image-for-%s" % lockfile,
-                         "phony", inputs=image)
-        return OstreeRef(image)
+                         "phony", inputs=image.filename)
+        return image
 
 
 def parse_packages(stream):
