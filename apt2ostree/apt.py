@@ -203,14 +203,9 @@ do_usrmove = Rule(
     tmpdir=$builddir/tmp/do_usrmove/$$(systemd-escape $in_branch);
     rm -rf "$$tmpdir";
     ostree --repo=$ostree_repo checkout -UH $in_branch "$$tmpdir";
-    ostree --repo=$ostree_repo checkout -UH :$in_branch:bin "$$tmpdir/usr/bin" --union || true;
-    ostree --repo=$ostree_repo checkout -UH :$in_branch:sbin "$$tmpdir/usr/sbin" --union || true;
-    ostree --repo=$ostree_repo checkout -UH :$in_branch:lib "$$tmpdir/usr/lib" --union || true;
-
-    rm -rf $$tmpdir/bin $$tmpdir/sbin $$tmpdir/lib;
-    ln -s usr/bin $$tmpdir/bin;
-    ln -s usr/lib $$tmpdir/lib;
-    ln -s usr/sbin $$tmpdir/sbin;
+    ostree --repo=$ostree_repo checkout -UH :$in_branch:bin "$$tmpdir/usr/bin" --union && rm -rf $$tmpdir/bin && ln -s usr/bin $$tmpdir/bin || true;
+    ostree --repo=$ostree_repo checkout -UH :$in_branch:sbin "$$tmpdir/usr/sbin" --union && rm -rf $$tmpdir/sbin && ln -s usr/sbin $$tmpdir/sbin || true;
+    ostree --repo=$ostree_repo checkout -UH :$in_branch:lib "$$tmpdir/usr/lib" --union  && rm -rf $$tmpdir/lib && ln -s usr/lib $$tmpdir/lib || true;
 
     ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
            --no-bindings --orphan --timestamp=0 --tree=dir=$$tmpdir
