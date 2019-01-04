@@ -199,6 +199,11 @@ make_dpkg_info = Rule(
 do_usrmove = Rule(
     "do_usrmove", """\
     set -ex;
+    if ! ostree --repo=$ostree_repo ls "$in_branch" | grep -e /bin -e /lib -e /sbin; then
+        ostree --repo=$ostree_repo commit -b $out_branch
+               --no-bindings --orphan --timestamp=0 --tree=ref=$in_branch;
+        exit 0;
+    fi;
     mkdir -p $builddir/tmp/do_usrmove;
     tmpdir=$builddir/tmp/do_usrmove/$$(systemd-escape $in_branch);
     rm -rf "$$tmpdir";
