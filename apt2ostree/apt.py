@@ -213,7 +213,8 @@ do_usrmove = Rule(
     ln -s usr/sbin $$tmpdir/sbin;
 
     ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
-           --no-bindings --orphan --timestamp=0 --tree=dir=$$tmpdir;
+           --no-bindings --orphan --timestamp=0 --tree=dir=$$tmpdir
+           --owner-uid=0 --owner-gid=0;
     """,
     inputs=["$ostree_repo/refs/heads/$in_branch"],
     output_type=OstreeRef,
