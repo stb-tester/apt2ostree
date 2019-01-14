@@ -19,10 +19,12 @@ update_lockfile = Rule("update_lockfile", """\
     mkdir -p $$tmpdir;
     HOME=$$tmpdir aptly mirror create
         -architectures="$architecture"
+        -keyring=$keyring -gpg-provider=internal
         "$out" "$archive_url" "$distribution" $components;
     HOME=$$tmpdir aptly lockfile create
         -mirrors "$out"
         -architectures=$architecture
+        -keyring=$keyring -gpg-provider=internal
         $packages >$lockfile~;
     if cmp $lockfile~ $lockfile; then
         rm $lockfile~;
@@ -30,7 +32,7 @@ update_lockfile = Rule("update_lockfile", """\
         mv $lockfile~ $lockfile;
     fi;
     rm -rf "$$tmpdir";
-""", inputs=['.FORCE'], outputs=['update-lockfile-$lockfile'])
+""", inputs=['.FORCE', "$keyring"], outputs=['update-lockfile-$lockfile'])
 
 dpkg_base = Rule(
     "dpkg_base", """\
@@ -289,14 +291,13 @@ dpkg_configure = Rule(
 
 
 AptSource = namedtuple(
-    "AptSource", "architecture distribution archive_url components")
+    "AptSource", "architecture distribution archive_url components keyring")
 
 ubuntu_xenial = AptSource(
     "amd64", "xenial", "http://archive.ubuntu.com/ubuntu",
-    "main restricted universe multiverse")
-ubuntu_xenial_armhf = AptSource(
-    "armhf", "xenial", "http://ports.ubuntu.com/ubuntu-ports",
-    "main restricted universe multiverse")
+    "main restricted universe multiverse", "$apt2ostreedir/xenial-keyring.gpg")
+ubuntu_xenial_armhf = ubuntu_xenial._replace(
+    architecture="armhf", archive_url="http://ports.ubuntu.com/ubuntu-ports")
 ubuntu_bionic = ubuntu_xenial._replace(distribution="bionic")
 ubuntu_bionic_armhf = ubuntu_xenial_armhf._replace(distribution="bionic")
 
@@ -375,6 +376,9 @@ class Apt(object):
     def generate_lockfile(self, lockfile, packages, apt_source):
         packages = sorted(packages)
 
+        this_dir_rel = os.path.relpath(
+            os.path.dirname(os.path.abspath(__file__)))
+
         self.archive_urls.add(apt_source.archive_url)
         out = update_lockfile.build(
             self.ninja,
@@ -383,7 +387,8 @@ class Apt(object):
             architecture=apt_source.architecture,
             archive_url=apt_source.archive_url,
             distribution=apt_source.distribution,
-            components=apt_source.components)
+            components=apt_source.components,
+            keyring=apt_source.keyring.replace("$apt2ostreedir", this_dir_rel))
         self._update_lockfile_rules.update(out)
         return lockfile
 
