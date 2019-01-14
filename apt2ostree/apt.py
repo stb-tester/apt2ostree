@@ -14,19 +14,21 @@ DEB_POOL_MIRRORS = []
 
 update_lockfile = Rule("update_lockfile", """\
     set -ex;
-    aptly mirror drop "$out" || true;
-    aptly mirror create
+    export tmpdir="_build/tmp/update_lockfile/$$(systemd-escape $out)";
+    rm -rf $$tmpdir;
+    mkdir -p $$tmpdir;
+    HOME=$$tmpdir aptly mirror create
         -architectures="$architecture"
         -filter "Priority (required) | Priority (Important) $packages"
         -filter-with-deps
         "$out" "$archive_url" "$distribution" $components;
-    aptly mirror update -list-without-downloading "$out" >$lockfile~;
-    aptly mirror drop "$out";
+    HOME=$$tmpdir aptly mirror update -list-without-downloading "$out" >$lockfile~;
     if cmp $lockfile~ $lockfile; then
         rm $lockfile~;
     else
         mv $lockfile~ $lockfile;
-    fi
+    fi;
+    rm -rf "$$tmpdir";
 """, inputs=['.FORCE'], outputs=['update-lockfile-$lockfile'])
 
 dpkg_base = Rule(
