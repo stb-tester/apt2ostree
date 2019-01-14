@@ -19,10 +19,11 @@ update_lockfile = Rule("update_lockfile", """\
     mkdir -p $$tmpdir;
     HOME=$$tmpdir aptly mirror create
         -architectures="$architecture"
-        -filter "Priority (required) | Priority (Important) $packages"
-        -filter-with-deps
         "$out" "$archive_url" "$distribution" $components;
-    HOME=$$tmpdir aptly mirror update -list-without-downloading "$out" >$lockfile~;
+    HOME=$$tmpdir aptly lockfile create
+        -mirrors "$out"
+        -architectures=$architecture
+        $packages >$lockfile~;
     if cmp $lockfile~ $lockfile; then
         rm $lockfile~;
     else
@@ -378,7 +379,7 @@ class Apt(object):
         out = update_lockfile.build(
             self.ninja,
             lockfile=lockfile,
-            packages="".join("| " + x for x in packages),
+            packages=packages,
             architecture=apt_source.architecture,
             archive_url=apt_source.archive_url,
             distribution=apt_source.distribution,
