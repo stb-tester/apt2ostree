@@ -28,7 +28,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(__file__) + '/../..')
-from apt2ostree import Apt, Ninja, AptSource
+from apt2ostree import Apt
 from apt2ostree.multistrap import multistrap
 
 
