@@ -169,6 +169,13 @@ def vars_in(items):
         for x in text.split('$$'):
             out.update(re.findall(r"\$(\w+)", x))
             out.update(re.findall(r"\${(\w+)}", x))
+            for line in x.split('\n'):
+                m = re.search(r'\$[^_{0-9a-zA-Z]', line)
+                if m:
+                    raise RuntimeError(
+                        "bad $-escape (literal $ must be written as $$)\n"
+                        "%s\n"
+                        "%s^ near here" % (line, " " * m.start()))
     return out
 
 
