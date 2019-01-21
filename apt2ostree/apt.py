@@ -6,7 +6,7 @@ import urllib
 from collections import namedtuple
 
 from .ninja import Rule
-from .ostree import ostree_combine, OstreeRef
+from .ostree import ostree_addfile, ostree_combine, OstreeRef
 
 
 DEB_POOL_MIRRORS = []
@@ -426,6 +426,8 @@ class Apt(object):
                             self.ninja,
                             in_branch=data.ref,
                             out_branch=data.ref + '-usrmove')
+                    data = self.fix_package(
+                        pkg['Package'], pkg['Version'], data)
                     all_data.append(data.filename)
                     status, available, info = make_dpkg_info.build(
                         self.ninja, sha256sum=pkg['SHA256'],
@@ -467,6 +469,30 @@ class Apt(object):
                          "phony", inputs=image.filename)
         return image
 
+    def fix_package(self, pkgname, version, data):
+        """
+        Here we can apply quirks as required to get particular packages to
+        install.
+        """
+        if pkgname == 'pylint' and version < "2.1.1-2":
+            # This is a backport of :
+            #
+            # > "Use "byte compile exception patterns" feature to exclude tests
+            # > from byte-compiling, instead of shipping a manual postinst file.
+            #
+            # This fixes installing python2.7-minimal on Ubuntu bionic.  It
+            # attempts to compile the contents of dist-packages/pylint/tests
+            # much of which isn't valid Python files.
+            #
+            # See also https://salsa.debian.org/python-team/applications/pylint/commit/28d9e9231f58ef9a1debeb4ae34f4d7441c36a67
+            return ostree_addfile.build(
+                self.ninja, in_branch=data.ref,
+                prefix="/usr/share/python/bcep",
+                in_file=_find_file("quirks/pylint/pylint.bcep"),
+                out_branch=data.ref + "-fixed")
+        else:
+            return data
+
 
 def parse_packages(stream):
     """Parses an apt Packages file"""
@@ -486,3 +512,7 @@ def parse_packages(stream):
         else:
             label, data = line.split(': ', 1)
             pkg[label] = data.strip()
+
+
+def _find_file(filename, this_dir=os.path.dirname(os.path.abspath(__file__))):
+    return os.path.join(this_dir, filename)

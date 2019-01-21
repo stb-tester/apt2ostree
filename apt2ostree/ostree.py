@@ -30,3 +30,20 @@ ostree_combine = Rule(
     outputs=["$ostree_repo/refs/heads/$branch"],
     order_only=["$ostree_repo/config"],
     description="Ostree Combine for $branch")
+
+ostree_addfile = Rule(
+    "file_into_ostree", """\
+    set -ex;
+    tmpdir=$$(mktemp -dt ostree_adddir.XXXXXX);
+    cp $in_file $$tmpdir;
+    ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
+           --no-bindings --orphan --timestamp=0
+           --tree=ref=$in_branch
+           --tree=prefix=$prefix --tree=dir=$$tmpdir
+           --owner-uid=0 --owner-gid=0;
+    rm -rf $$tmpdir;
+    """,
+    inputs=["$ostree_repo/refs/heads/$in_branch", "$in_file"],
+    output_type=OstreeRef,
+    outputs=["$ostree_repo/refs/heads/$out_branch"],
+    description="Add file $in_branch")
