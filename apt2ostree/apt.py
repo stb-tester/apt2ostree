@@ -294,7 +294,16 @@ AptSource = namedtuple(
     "AptSource", "architecture distribution archive_url components keyring")
 
 
+_UBUNTU_RELEASES = {
+    "14.04": "trusty",
+    "16.04": "xenial",
+    "18.04": "bionic",
+}
+
+
 def ubuntu_apt_sources(release="bionic", architecture="amd64"):
+    if release in _UBUNTU_RELEASES:
+        release = _UBUNTU_RELEASES[release]
     if architecture in ["amd64", "i386"]:
         archive_url = "http://archive.ubuntu.com/ubuntu"
     else:
