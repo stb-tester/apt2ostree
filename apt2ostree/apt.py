@@ -293,13 +293,15 @@ dpkg_configure = Rule(
 AptSource = namedtuple(
     "AptSource", "architecture distribution archive_url components keyring")
 
-ubuntu_xenial = AptSource(
-    "amd64", "xenial", "http://archive.ubuntu.com/ubuntu",
-    "main restricted universe multiverse", "$apt2ostreedir/xenial-keyring.gpg")
-ubuntu_xenial_armhf = ubuntu_xenial._replace(
-    architecture="armhf", archive_url="http://ports.ubuntu.com/ubuntu-ports")
-ubuntu_bionic = ubuntu_xenial._replace(distribution="bionic")
-ubuntu_bionic_armhf = ubuntu_xenial_armhf._replace(distribution="bionic")
+
+def ubuntu_apt_sources(release="bionic", architecture="amd64"):
+    if architecture in ["amd64", "i386"]:
+        archive_url = "http://archive.ubuntu.com/ubuntu"
+    else:
+        archive_url = "http://ports.ubuntu.com/ubuntu-ports"
+    return AptSource(architecture, release, archive_url,
+                     "main restricted universe multiverse",
+                     "$apt2ostreedir/xenial-keyring.gpg")
 
 
 class Apt(object):
