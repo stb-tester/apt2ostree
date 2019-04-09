@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
 import errno
+import hashlib
 import os
+import pipes
 import urllib
 from collections import namedtuple
 
@@ -17,12 +19,10 @@ update_lockfile = Rule("update_lockfile", """\
     export tmpdir="_build/tmp/update_lockfile/$$(systemd-escape $out)";
     rm -rf $$tmpdir;
     mkdir -p $$tmpdir;
-    HOME=$$tmpdir aptly mirror create
-        -architectures="$architecture"
-        -keyring=$keyring -gpg-provider=internal
-        "$out" "$archive_url" "$distribution" $components;
-    HOME=$$tmpdir aptly lockfile create
-        -mirrors "$out"
+    export HOME=$$tmpdir;
+    $create_mirrors;
+    aptly lockfile create
+        -mirrors "$mirrors"
         -architectures=$architecture
         -keyring=$keyring -gpg-provider=internal
         $packages >$lockfile~;
@@ -81,7 +81,7 @@ apt_base = Rule(
     tmpdir="$$(mktemp -dp $builddir/tmp -t apt_base.XXXXXX)";
     mkdir -p $$tmpdir/etc/apt/sources.list.d;
     printf "deb [arch=%s] %s %s %s\\n" $architecture $archive_url $distribution "$components"
-        >$$tmpdir/etc/apt/sources.list.d/apt2ostree.list;
+        >$$tmpdir/etc/apt/sources.list.d/$name.list;
     ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
            --tree=dir=$$tmpdir
            --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
@@ -299,9 +299,17 @@ def ubuntu_apt_sources(release="bionic", architecture="amd64"):
         archive_url = "http://archive.ubuntu.com/ubuntu"
     else:
         archive_url = "http://ports.ubuntu.com/ubuntu-ports"
-    return AptSource(architecture, release, archive_url,
-                     "main restricted universe multiverse",
-                     "$apt2ostreedir/xenial-keyring.gpg")
+    return [
+        AptSource(architecture, release, archive_url,
+                  "main restricted universe multiverse",
+                  "$apt2ostreedir/xenial-keyring.gpg"),
+        AptSource(architecture, "%s-updates" % release, archive_url,
+                  "main restricted universe multiverse",
+                  "$apt2ostreedir/xenial-keyring.gpg"),
+        AptSource(architecture, "%s-security" % release, archive_url,
+                  "main restricted universe multiverse",
+                  "$apt2ostreedir/xenial-keyring.gpg"),
+    ]
 
 
 class Apt(object):
@@ -326,30 +334,33 @@ class Apt(object):
         self.ninja.build("update-apt-lockfiles", "phony",
                          inputs=list(self._update_lockfile_rules))
 
-    def build_image(self, lockfile, packages, apt_source, unpack_only=False,
+    def build_image(self, lockfile, packages, apt_sources, unpack_only=False,
                     usrmove=False):
-        self.generate_lockfile(lockfile, packages, apt_source)
+        self.generate_lockfile(lockfile, packages, apt_sources)
         stage_1 = self.image_from_lockfile(
-            lockfile, apt_source.architecture, usrmove)
-        sources_list = apt_base.build(
-            self.ninja, archive_url=apt_source.archive_url,
-            components=apt_source.components,
-            architecture=apt_source.architecture,
-            distribution=apt_source.distribution)
+            lockfile, apt_sources[0].architecture, usrmove)
+        sources_lists = []
+        for n, apt_source in enumerate(apt_sources):
+            sources_lists.append(apt_base.build(
+                self.ninja, archive_url=apt_source.archive_url,
+                components=apt_source.components,
+                architecture=apt_source.architecture,
+                distribution=apt_source.distribution,
+                name="apt2ostree-%i" % n))
         if unpack_only:
             out = stage_1
         else:
-            stage_2 = self.second_stage(stage_1, apt_source.architecture)
+            stage_2 = self.second_stage(stage_1, apt_source[0].architecture)
             assert "unpacked" in stage_1.ref
             complete = ostree_combine.build(
                 self.ninja,
-                inputs=[stage_2.filename, sources_list.filename],
+                inputs=[stage_2.filename] + [x.filename for x in sources_lists],
                 branch=stage_1.ref.replace("unpacked", "complete"))
             self.ninja.build(
                 "image-for-%s" % lockfile, "phony", inputs=complete.filename)
             out = complete
         out.stage_1 = stage_1
-        out.sources_list = sources_list
+        out.sources_lists = sources_lists
         return out
 
     def second_stage(self, unpacked, architecture, branch=None):
@@ -375,22 +386,50 @@ class Apt(object):
             binfmt_misc_support=binfmt_misc_support)
         return configured_ref
 
-    def generate_lockfile(self, lockfile, packages, apt_source):
+    def generate_lockfile(self, lockfile, packages, apt_sources):
         packages = sorted(packages)
 
         this_dir_rel = os.path.relpath(
             os.path.dirname(os.path.abspath(__file__)))
 
-        self.archive_urls.add(apt_source.archive_url)
+        # We need to call aptly mirror create for each of our apt_sources. It's
+        # difficult to pass that kind of structured data through to a rule via
+        # a variable - so instead we write out a shell script which makes the
+        # calls for us.
+        mirrors = []
+        gen_mirror_cmds = []
+        s = hashlib.sha256()
+        for n, src in enumerate(apt_sources):
+            mirrors.append("mirror-%i" % n)
+            self.archive_urls.add(src.archive_url)
+            s.update(repr(apt_sources))
+            cmd = [
+                "aptly", "mirror", "create",
+                "-architectures=" + src.architecture,
+                "-keyring=" + src.keyring.replace("$apt2ostreedir", this_dir_rel),
+                "-gpg-provider=internal",
+                "mirror-%i" % n, src.archive_url,
+                src.distribution] + src.components.split()
+            gen_mirror_cmds.append(" ".join(pipes.quote(x) for x in cmd))
+
+        create_mirrors = "_build/apt/lockfile/create_mirrors-%s" % (
+            s.hexdigest()[:7])
+        mkdir_p(os.path.dirname(create_mirrors))
+        with self.ninja.open(create_mirrors, "w") as f:
+            f.write("#!/bin/sh -ex\n")
+            for x in gen_mirror_cmds:
+                f.write(x + "\n")
+            os.fchmod(f.fileno(), 0755)
+
         out = update_lockfile.build(
             self.ninja,
             lockfile=lockfile,
             packages=packages,
-            architecture=apt_source.architecture,
-            archive_url=apt_source.archive_url,
-            distribution=apt_source.distribution,
-            components=apt_source.components,
-            keyring=apt_source.keyring.replace("$apt2ostreedir", this_dir_rel))
+            create_mirrors=create_mirrors,
+            mirrors=",".join(mirrors),
+            architecture=apt_sources[0].architecture,
+            keyring=apt_sources[0].keyring.replace(
+                "$apt2ostreedir", this_dir_rel))
         self._update_lockfile_rules.update(out)
         return lockfile
 
@@ -514,6 +553,20 @@ def parse_packages(stream):
         else:
             label, data = line.split(': ', 1)
             pkg[label] = data.strip()
+
+
+def mkdir_p(d):
+    """Python 3.2 has an optional argument to os.makedirs called exist_ok.  To
+    support older versions of python we can't use this and need to catch
+    exceptions"""
+    try:
+        os.makedirs(d)
+    except OSError, e:
+        if e.errno == errno.EEXIST and os.path.isdir(d) \
+                and os.access(d, os.R_OK | os.W_OK):
+            return
+        else:
+            raise
 
 
 def _find_file(filename, this_dir=os.path.dirname(os.path.abspath(__file__))):

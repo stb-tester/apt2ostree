@@ -21,14 +21,18 @@ def read_multistrap_config(ninja, config_file):
 
     section = p.get("General", "aptsources").split()[0]
 
-    apt_source = AptSource(
-        architecture=get("General", "arch") or "amd64",
-        distribution=get(section, "suite"),
-        archive_url=get(section, "source"),
-        components=get(section, "components"),
-        keyring=get(section, "keyring"))
+    apt_sources = []
+    packages = []
+    for section in p.get("General", "aptsources").split():
+        apt_sources.append(AptSource(
+            architecture=get("General", "arch") or "amd64",
+            distribution=get(section, "suite"),
+            archive_url=get(section, "source"),
+            components=get(section, "components"),
+            keyring=get(section, "keyring")))
+        packages += get(section, "packages", "").split()
 
-    return MultistrapConfig(apt_source, get(section, "packages", "").split())
+    return MultistrapConfig(apt_sources, packages)
 
 
 def multistrap(config_file, ninja, apt, unpack_only=False):
