@@ -359,7 +359,7 @@ class Apt(object):
         if unpack_only:
             out = stage_1
         else:
-            stage_2 = self.second_stage(stage_1, apt_source[0].architecture)
+            stage_2 = self.second_stage(stage_1, apt_sources[0].architecture)
             assert "unpacked" in stage_1.ref
             complete = ostree_combine.build(
                 self.ninja,
