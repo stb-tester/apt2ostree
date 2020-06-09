@@ -570,7 +570,7 @@ def mkdir_p(d):
     exceptions"""
     try:
         os.makedirs(d)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.EEXIST and os.path.isdir(d) \
                 and os.access(d, os.R_OK | os.W_OK):
             return
