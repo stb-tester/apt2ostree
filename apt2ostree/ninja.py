@@ -159,10 +159,18 @@ class Ninja(ninja_syntax.Writer):
                 f.write("%s\n" % os.path.relpath(x, os.path.dirname(filename)))
 
 
+def _is_string(val):
+    if sys.version_info[0] >= 3:
+        str_type = str
+    else:
+        str_type = basestring
+    return isinstance(val, str_type)
+
+
 def vars_in(items):
     if items is None:
         return set()
-    if isinstance(items, (str, unicode)):
+    if _is_string(items):
         items = [items]
     out = set()
     for text in items:
@@ -256,7 +264,7 @@ class Rule(object):
 
 
 def shquote(v):
-    if isinstance(v, (unicode, str)):
+    if _is_string(v):
         return pipes.quote(v)
     else:
         return " ".join(shquote(x) for x in v)
