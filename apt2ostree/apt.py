@@ -4,7 +4,11 @@ import errno
 import hashlib
 import os
 import pipes
-import urllib
+import sys
+if sys.version_info[0] >= 3:
+    from urllib.parse import unquote
+else:
+    from urllib import unquote
 from collections import namedtuple
 
 from .ninja import Rule
@@ -461,7 +465,7 @@ class Apt(object):
         try:
             with self.ninja.open(lockfile) as f:
                 for pkg in parse_packages(f):
-                    filename = urllib.unquote(pkg['Filename'])
+                    filename = unquote(pkg['Filename'])
                     aptly_pool_filename = "%s/%s/%s_%s" % (
                         pkg['SHA256'][:2], pkg['SHA256'][2:4],
                         pkg['SHA256'][4:], os.path.basename(filename))
