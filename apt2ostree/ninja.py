@@ -89,7 +89,7 @@ class Ninja(ninja_syntax.Writer):
         inputs = ninja_syntax.as_list(inputs)
         for x in outputs:
             s = hashlib.sha256()
-            s.update(str((rule, inputs, sorted(kwargs.items()))))
+            s.update(str((rule, inputs, sorted(kwargs.items()))).encode('utf-8'))
             if self.add_target(x, s.hexdigest()) == ALREADY_WRITTEN:
                 # Its a duplicate build statement, but it's identical to the
                 # last time it was written so that's ok.
@@ -235,7 +235,7 @@ class Rule(object):
 
         if '_args_digest' in self.vars:
             s = hashlib.sha256()
-            s.update(str([self.name] + sorted(kwargs.items())))
+            s.update(str([self.name] + sorted(kwargs.items())).encode('utf-8'))
             kwargs['_args_digest'] = s.hexdigest()[:7]
 
         if self.outputs:

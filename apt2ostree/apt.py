@@ -415,7 +415,7 @@ class Apt(object):
         for n, src in enumerate(apt_sources):
             mirrors.append("mirror-%i" % n)
             self.archive_urls.add(src.archive_url)
-            s.update(repr(apt_sources))
+            s.update(repr(apt_sources).encode('utf-8'))
             cmd = [
                 "aptly", "mirror", "create",
                 "-architectures=" + src.architecture,
