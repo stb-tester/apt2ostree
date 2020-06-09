@@ -432,7 +432,7 @@ class Apt(object):
             f.write("#!/bin/sh -ex\n")
             for x in gen_mirror_cmds:
                 f.write(x + "\n")
-            os.fchmod(f.fileno(), 0755)
+            os.fchmod(f.fileno(), 0o755)
 
         out = update_lockfile.build(
             self.ninja,

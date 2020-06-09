@@ -52,7 +52,7 @@ class Ninja(ninja_syntax.Writer):
             f.write("#!/bin/sh\nexec %s\n" % (
                 shquote(["./" + os.path.relpath(self.regenerate_command[0])] +
                         self.regenerate_command[1:])))
-        os.chmod(reconfigure, 0755)
+        os.chmod(reconfigure, 0o755)
         self.rule("configure", reconfigure, generator=True)
 
         self.add_target("%s/.ninja_deps" % self.builddir)
