@@ -266,7 +266,7 @@ dpkg_configure = Rule(
             $$BWRAP /var/lib/dpkg/info/dash.preinst install;
         fi;
         printf '#!/bin/sh\\nexit 101'
-        | sudo sponge $$tmpdir/co/usr/sbin/policy-rc.d;
+        | sudo tee $$tmpdir/co/usr/sbin/policy-rc.d;
         sudo chmod a+x $$tmpdir/co/usr/sbin/policy-rc.d;
 
         if [ -f $$TARGET/usr/lib/insserv/insserv ]; then
