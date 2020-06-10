@@ -259,22 +259,29 @@ dpkg_configure = Rule(
         mkdir -p $$tmpdir;
         TARGET=$$tmpdir/co;
         sudo ostree --repo=$ostree_repo checkout --force-copy $in_branch $$TARGET;
-        echo "root:x:0:0:root:/root:/bin/bash" | sudo sponge $$TARGET/etc/passwd;
-        echo "root:x:0:" | sudo sponge $$TARGET/etc/group;
+        sudo cp $$TARGET/usr/share/base-passwd/passwd.master $$TARGET/etc/passwd;
+        sudo cp $$TARGET/usr/share/base-passwd/group.master $$TARGET/etc/group;
+
         BWRAP="sudo bwrap --bind $$TARGET / --proc /proc --dev /dev
             --tmpfs /tmp --tmpfs /run --setenv LANG C.UTF-8
             --setenv DEBIAN_FRONTEND noninteractive
             $binfmt_misc_support";
-        $$BWRAP /var/lib/dpkg/info/dash.preinst install;
-
+        if [ -x $$TARGET/var/lib/dpkg/info/dash.preinst ]; then
+            $$BWRAP /var/lib/dpkg/info/dash.preinst install;
+        fi;
         printf '#!/bin/sh\\nexit 101'
-        | sudo sponge $$tmpdir/co/usr/sbin/policy-rc.d;
+        | sudo tee $$tmpdir/co/usr/sbin/policy-rc.d;
         sudo chmod a+x $$tmpdir/co/usr/sbin/policy-rc.d;
 
-        $$BWRAP dpkg-divert --local --rename --add /usr/lib/insserv/insserv;
-        sudo ln -s ../../../bin/true $$TARGET/usr/lib/insserv/insserv;
-        sudo ln -s ../bin/true $$TARGET/sbin/insserv;
-    	sudo ln -sf mawk "$$TARGET/usr/bin/awk";
+        if [ -f $$TARGET/usr/lib/insserv/insserv ]; then
+            $$BWRAP dpkg-divert --local --rename --add /usr/lib/insserv/insserv;
+            sudo ln -s ../../../bin/true $$TARGET/usr/lib/insserv/insserv;
+            sudo ln -s ../bin/true $$TARGET/sbin/insserv;
+        fi;
+
+        if [ -f $$TARGET/usr/bin/mawk ]; then
+            sudo ln -sf mawk $$TARGET/usr/bin/awk;
+        fi;
 
         $$BWRAP dpkg --configure -a;
 
