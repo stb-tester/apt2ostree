@@ -262,8 +262,9 @@ dpkg_configure = Rule(
             --tmpfs /tmp --tmpfs /run --setenv LANG C.UTF-8
             --setenv DEBIAN_FRONTEND noninteractive
             $binfmt_misc_support";
-        $$BWRAP /var/lib/dpkg/info/dash.preinst install;
-
+        if [ -x $$TARGET/var/lib/dpkg/info/dash.preinst ]; then
+            $$BWRAP /var/lib/dpkg/info/dash.preinst install;
+        fi;
         printf '#!/bin/sh\\nexit 101'
         | sudo sponge $$tmpdir/co/usr/sbin/policy-rc.d;
         sudo chmod a+x $$tmpdir/co/usr/sbin/policy-rc.d;
