@@ -150,9 +150,9 @@ Dependencies
   adding lockfiles.  Fortunately aptly is quick and easy to build.  See
   https://github.com/stb-tester/aptly/tree/lockfile.  To build run:
 
-        $ mkdir -p $GOPATH/src/github.com/stb-tester/aptly
-        $ git clone https://github.com/stb-tester/aptly $GOPATH/src/github.com/stb-tester/aptly
-        $ cd $GOPATH/src/github.com/stb-tester/aptly
+        $ mkdir -p $GOPATH/src/github.com/aptly-dev/aptly
+        $ git clone https://github.com/stb-tester/aptly $GOPATH/src/github.com/aptly-dev/aptly
+        $ cd $GOPATH/src/github.com/aptly-dev/aptly
         $ make install
 
   and add `$GOPATH/bin` to your `$PATH`
