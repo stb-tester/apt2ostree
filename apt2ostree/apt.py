@@ -268,9 +268,11 @@ dpkg_configure = Rule(
         | sudo sponge $$tmpdir/co/usr/sbin/policy-rc.d;
         sudo chmod a+x $$tmpdir/co/usr/sbin/policy-rc.d;
 
-        $$BWRAP dpkg-divert --local --rename --add /usr/lib/insserv/insserv;
-        sudo ln -s ../../../bin/true $$TARGET/usr/lib/insserv/insserv;
-        sudo ln -s ../bin/true $$TARGET/sbin/insserv;
+        if [ -f $$TARGET/usr/lib/insserv/insserv ]; then
+            $$BWRAP dpkg-divert --local --rename --add /usr/lib/insserv/insserv;
+            sudo ln -s ../../../bin/true $$TARGET/usr/lib/insserv/insserv;
+            sudo ln -s ../bin/true $$TARGET/sbin/insserv;
+        fi;
     	sudo ln -sf mawk "$$TARGET/usr/bin/awk";
 
         $$BWRAP dpkg --configure -a;
