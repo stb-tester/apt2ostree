@@ -274,7 +274,10 @@ dpkg_configure = Rule(
             sudo ln -s ../../../bin/true $$TARGET/usr/lib/insserv/insserv;
             sudo ln -s ../bin/true $$TARGET/sbin/insserv;
         fi;
-    	sudo ln -sf mawk "$$TARGET/usr/bin/awk";
+
+        if [ -f $$TARGET/usr/bin/mawk ]; then
+            sudo ln -sf mawk $$TARGET/usr/bin/awk;
+        fi;
 
         $$BWRAP dpkg --configure -a;
 
