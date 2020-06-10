@@ -4,7 +4,11 @@ import errno
 import hashlib
 import os
 import pipes
-import urllib
+import sys
+if sys.version_info[0] >= 3:
+    from urllib.parse import unquote
+else:
+    from urllib import unquote
 from collections import namedtuple
 
 from .ninja import Rule
@@ -411,7 +415,7 @@ class Apt(object):
         for n, src in enumerate(apt_sources):
             mirrors.append("mirror-%i" % n)
             self.archive_urls.add(src.archive_url)
-            s.update(repr(apt_sources))
+            s.update(repr(apt_sources).encode('utf-8'))
             cmd = [
                 "aptly", "mirror", "create",
                 "-architectures=" + src.architecture,
@@ -428,7 +432,7 @@ class Apt(object):
             f.write("#!/bin/sh -ex\n")
             for x in gen_mirror_cmds:
                 f.write(x + "\n")
-            os.fchmod(f.fileno(), 0755)
+            os.fchmod(f.fileno(), 0o755)
 
         out = update_lockfile.build(
             self.ninja,
@@ -461,7 +465,7 @@ class Apt(object):
         try:
             with self.ninja.open(lockfile) as f:
                 for pkg in parse_packages(f):
-                    filename = urllib.unquote(pkg['Filename'])
+                    filename = unquote(pkg['Filename'])
                     aptly_pool_filename = "%s/%s/%s_%s" % (
                         pkg['SHA256'][:2], pkg['SHA256'][2:4],
                         pkg['SHA256'][4:], os.path.basename(filename))
@@ -570,7 +574,7 @@ def mkdir_p(d):
     exceptions"""
     try:
         os.makedirs(d)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.EEXIST and os.path.isdir(d) \
                 and os.access(d, os.R_OK | os.W_OK):
             return

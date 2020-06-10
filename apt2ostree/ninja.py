@@ -52,7 +52,7 @@ class Ninja(ninja_syntax.Writer):
             f.write("#!/bin/sh\nexec %s\n" % (
                 shquote(["./" + os.path.relpath(self.regenerate_command[0])] +
                         self.regenerate_command[1:])))
-        os.chmod(reconfigure, 0755)
+        os.chmod(reconfigure, 0o755)
         self.rule("configure", reconfigure, generator=True)
 
         self.add_target("%s/.ninja_deps" % self.builddir)
@@ -89,7 +89,7 @@ class Ninja(ninja_syntax.Writer):
         inputs = ninja_syntax.as_list(inputs)
         for x in outputs:
             s = hashlib.sha256()
-            s.update(str((rule, inputs, sorted(kwargs.items()))))
+            s.update(str((rule, inputs, sorted(kwargs.items()))).encode('utf-8'))
             if self.add_target(x, s.hexdigest()) == ALREADY_WRITTEN:
                 # Its a duplicate build statement, but it's identical to the
                 # last time it was written so that's ok.
@@ -159,10 +159,18 @@ class Ninja(ninja_syntax.Writer):
                 f.write("%s\n" % os.path.relpath(x, os.path.dirname(filename)))
 
 
+def _is_string(val):
+    if sys.version_info[0] >= 3:
+        str_type = str
+    else:
+        str_type = basestring
+    return isinstance(val, str_type)
+
+
 def vars_in(items):
     if items is None:
         return set()
-    if isinstance(items, (str, unicode)):
+    if _is_string(items):
         items = [items]
     out = set()
     for text in items:
@@ -227,7 +235,7 @@ class Rule(object):
 
         if '_args_digest' in self.vars:
             s = hashlib.sha256()
-            s.update(str([self.name] + sorted(kwargs.items())))
+            s.update(str([self.name] + sorted(kwargs.items())).encode('utf-8'))
             kwargs['_args_digest'] = s.hexdigest()[:7]
 
         if self.outputs:
@@ -256,7 +264,7 @@ class Rule(object):
 
 
 def shquote(v):
-    if isinstance(v, (unicode, str)):
+    if _is_string(v):
         return pipes.quote(v)
     else:
         return " ".join(shquote(x) for x in v)
