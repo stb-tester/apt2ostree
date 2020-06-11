@@ -1,7 +1,7 @@
 from collections import namedtuple
 from configparser import NoOptionError, SafeConfigParser
 
-from .apt import AptSource
+from .apt import AptSource, keyrings_for
 
 
 MultistrapConfig = namedtuple(
@@ -27,7 +27,7 @@ def read_multistrap_config(ninja, config_file):
             distribution=get(section, "suite"),
             archive_url=get(section, "source"),
             components=get(section, "components"),
-            keyring=get_keyring(get(section, "source"), get(section, "suite"))))
+            keyrings=get_keyring(get(section, "source"), get(section, "suite"))))
         packages += get(section, "packages", "").split()
 
     return MultistrapConfig(apt_sources, packages)
@@ -35,7 +35,11 @@ def read_multistrap_config(ninja, config_file):
 
 def get_keyring(archive_url, distribution):
     if 'ubuntu' in archive_url:
-        return "$apt2ostreedir/xenial-keyring.gpg"
+        return keyrings_for("ubuntu", distribution)
+    elif 'debian' in archive_url:
+        return keyrings_for("debian", distribution)
+    else:
+        raise Exception("Couldn't work out distro from %r" % archive_url)
 
 
 def multistrap(config_file, ninja, apt, unpack_only=False):

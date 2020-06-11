@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import errno
+import glob
 import hashlib
 import os
 import pipes
@@ -28,7 +29,7 @@ update_lockfile = Rule("update_lockfile", """\
     aptly lockfile create
         -mirrors "$mirrors"
         -architectures=$architecture
-        -keyring=$keyring -gpg-provider=internal
+        $keyring_arg -gpg-provider=internal
         $packages >$lockfile~;
     if cmp $lockfile~ $lockfile; then
         rm $lockfile~;
@@ -36,7 +37,7 @@ update_lockfile = Rule("update_lockfile", """\
         mv $lockfile~ $lockfile;
     fi;
     rm -rf "$$tmpdir";
-""", inputs=['.FORCE', "$keyring"], outputs=['update-lockfile-$lockfile'])
+""", inputs=['.FORCE'], outputs=['update-lockfile-$lockfile'])
 
 dpkg_base = Rule(
     "dpkg_base", """\
@@ -302,7 +303,7 @@ dpkg_configure = Rule(
 
 
 AptSource = namedtuple(
-    "AptSource", "architecture distribution archive_url components keyring")
+    "AptSource", "architecture distribution archive_url components keyrings")
 
 
 _UBUNTU_RELEASES = {
@@ -322,14 +323,31 @@ def ubuntu_apt_sources(release="bionic", architecture="amd64"):
     return [
         AptSource(architecture, release, archive_url,
                   "main restricted universe multiverse",
-                  "$apt2ostreedir/xenial-keyring.gpg"),
+                  keyrings_for("ubuntu", release)),
         AptSource(architecture, "%s-updates" % release, archive_url,
                   "main restricted universe multiverse",
-                  "$apt2ostreedir/xenial-keyring.gpg"),
+                  keyrings_for("ubuntu", "%s-updates" % release)),
         AptSource(architecture, "%s-security" % release, archive_url,
                   "main restricted universe multiverse",
-                  "$apt2ostreedir/xenial-keyring.gpg"),
+                  keyrings_for("ubuntu", "%s-security" % release)),
     ]
+
+
+def keyrings_for(distro, release):
+    if os.path.exists(_find_file("keyrings/%s/%s" % (distro, release))):
+        d = "keyrings/%s/%s" % (distro, release)
+    elif os.path.exists(
+            _find_file("keyrings/%s/%s" % (distro, release.split("-")[0]))):
+        d = "keyrings/%s/%s" % (distro, release.split("-")[0])
+    else:
+        raise Exception("No known key for %s/%s" % (distro, release))
+
+    out = []
+    for x in glob.glob(_find_file("%s/*.gpg" % d)):
+        out.append("$apt2ostreedir/%s" % os.path.relpath(x, _find_file(".")))
+
+    sys.stderr.write("%s\n" % out)
+    return out
 
 
 class Apt(object):
@@ -418,15 +436,19 @@ class Apt(object):
         # calls for us.
         mirrors = []
         gen_mirror_cmds = []
+        all_keyring_args = set()
         s = hashlib.sha256()
         for n, src in enumerate(apt_sources):
             mirrors.append("mirror-%i" % n)
             self.archive_urls.add(src.archive_url)
             s.update(repr(apt_sources).encode('utf-8'))
+            keyring_arg = [
+                "-keyring=" + x.replace("$apt2ostreedir", this_dir_rel)
+                for x in src.keyrings]
+            all_keyring_args = all_keyring_args.union(keyring_arg)
             cmd = [
                 "aptly", "mirror", "create",
-                "-architectures=" + src.architecture,
-                "-keyring=" + src.keyring.replace("$apt2ostreedir", this_dir_rel),
+                "-architectures=" + src.architecture] + keyring_arg + [
                 "-gpg-provider=internal",
                 "mirror-%i" % n, src.archive_url,
                 src.distribution] + src.components.split()
@@ -441,6 +463,8 @@ class Apt(object):
                 f.write(x + "\n")
             os.fchmod(f.fileno(), 0o755)
 
+        keyring_arg = " ".join("-keyring=")
+
         out = update_lockfile.build(
             self.ninja,
             lockfile=lockfile,
@@ -448,8 +472,7 @@ class Apt(object):
             create_mirrors=create_mirrors,
             mirrors=",".join(mirrors),
             architecture=apt_sources[0].architecture,
-            keyring=apt_sources[0].keyring.replace(
-                "$apt2ostreedir", this_dir_rel))
+            keyring_arg=" ".join(all_keyring_args))
         self._update_lockfile_rules.update(out)
         return lockfile
 
