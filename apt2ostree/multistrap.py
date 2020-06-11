@@ -5,7 +5,7 @@ from .apt import AptSource
 
 
 MultistrapConfig = namedtuple(
-    "MultistrapConfig", "apt_source packages")
+    "MultistrapConfig", "apt_sources packages")
 
 
 def read_multistrap_config(ninja, config_file):
@@ -19,8 +19,6 @@ def read_multistrap_config(ninja, config_file):
         except NoOptionError:
             return default
 
-    section = p.get("General", "aptsources").split()[0]
-
     apt_sources = []
     packages = []
     for section in p.get("General", "aptsources").split():
@@ -29,15 +27,20 @@ def read_multistrap_config(ninja, config_file):
             distribution=get(section, "suite"),
             archive_url=get(section, "source"),
             components=get(section, "components"),
-            keyring=get(section, "keyring")))
+            keyring=get_keyring(get(section, "source"), get(section, "suite"))))
         packages += get(section, "packages", "").split()
 
     return MultistrapConfig(apt_sources, packages)
+
+
+def get_keyring(archive_url, distribution):
+    if 'ubuntu' in archive_url:
+        return "$apt2ostreedir/xenial-keyring.gpg"
 
 
 def multistrap(config_file, ninja, apt, unpack_only=False):
     cfg = read_multistrap_config(ninja, config_file)
     return apt.build_image("%s.lock" % config_file,
                            packages=cfg.packages,
-                           apt_source=cfg.apt_source,
+                           apt_sources=cfg.apt_sources,
                            unpack_only=unpack_only)
