@@ -5,6 +5,7 @@ import glob
 import hashlib
 import os
 import pipes
+import platform
 import sys
 if sys.version_info[0] >= 3:
     from urllib.parse import unquote
@@ -406,16 +407,44 @@ class Apt(object):
             assert "unpacked" in unpacked.ref
             branch = unpacked.ref.replace("unpacked", "configured")
         order_only = []
-        if architecture == "armhf":
-            binfmt_misc_support = \
-                "--ro-bind /usr/bin/qemu-arm-static /usr/bin/qemu-arm-static"
-            order_only.append('/usr/bin/qemu-arm-static')
-        elif architecture in ["amd64", "i686"]:
+
+        def deb2qemu_arch(arch):
+            d = {
+                'armhf': 'arm',
+                'amd64': 'x86_64',
+                'arm64': 'aarch64',
+            }
+            return d.get(arch, arch)
+
+        def py2deb_arch(arch):
+            d = {
+                'x86_64': 'amd64',
+                'aarch64': 'arm64',
+            }
+            return d.get(arch, arch)
+
+        def arch_is_capable(a1, a2):
+            """can a1 natively run a2 binaries?"""
+            d = {
+                'amd64': ['amd64', 'i386'],
+                'arm64': ['arm64', 'armhf'],
+            }
+            compatible = d.get(a1, [a1])
+            return a2 in compatible
+
+        def native_deb_arch():
+            arch = platform.machine()
+            return py2deb_arch(arch)
+
+        native_arch = native_deb_arch()
+        if arch_is_capable(native_arch, architecture):
             binfmt_misc_support = ""
         else:
-            assert False, ("binfmt_misc support for architecture %r not "
-                           "implemented in apt2ostree.  Modify lines above to "
-                           "add support if possible.")
+            qemu_arch = deb2qemu_arch(architecture)
+            qemu_user = '/usr/bin/qemu-%s-static' % qemu_arch
+            binfmt_misc_support = '--ro-bind {0} {0}'.format(qemu_user)
+            order_only.append(qemu_user)
+
         configured_ref = dpkg_configure.build(
             self.ninja,
             in_branch=unpacked.ref,
