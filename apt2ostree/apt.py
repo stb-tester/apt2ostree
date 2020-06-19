@@ -347,7 +347,6 @@ def keyrings_for(distro, release):
     for x in glob.glob(_find_file("%s/*.gpg" % d)):
         out.append("$apt2ostreedir/%s" % os.path.relpath(x, _find_file(".")))
 
-    sys.stderr.write("%s\n" % out)
     return out
 
 
