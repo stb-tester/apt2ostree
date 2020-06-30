@@ -227,6 +227,7 @@ do_usrmove = Rule(
            --no-bindings --orphan --timestamp=0 --tree=dir=$$tmpdir
            --owner-uid=0 --owner-gid=0;
     """,
+    restat=True,
     inputs=["$ostree_repo/refs/heads/$in_branch"],
     output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/$out_branch"],
@@ -244,6 +245,7 @@ deb_combine_meta = Rule(
         --owner-uid=0 --owner-gid=0 --no-xattrs;
     rm -rf "$$tmpdir";
     """,
+    restat=True,
     output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/deb/images/$pkgs_digest/$meta"],
     order_only=["$ostree_repo/config"],
@@ -294,6 +296,7 @@ dpkg_configure = Rule(
                  --orphan --timestamp=0 --tree=tar=/dev/stdin;
         sudo rm -rf $$tmpdir;
     """,
+    restat=True,
     output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/$out_branch"],
     inputs=["$ostree_repo/refs/heads/$in_branch"],

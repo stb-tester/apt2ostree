@@ -16,7 +16,7 @@ class OstreeRef(namedtuple("OstreeImage", "filename")):
 ostree = Rule("ostree", """\
     mkdir $ostree_repo;
     ostree init --repo=$ostree_repo --mode=bare-user;
-    """, outputs=['$ostree_repo/config'])
+    """, outputs=['$ostree_repo/config'], restat=True)
 
 
 ostree_combine = Rule(
@@ -26,6 +26,7 @@ ostree_combine = Rule(
          | xargs -xr ostree --repo=$ostree_repo commit -b $branch --no-bindings
                             --orphan --timestamp=0;
         [ -e $out ]""",
+    restat=True,
     output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/$branch"],
     order_only=["$ostree_repo/config"],
@@ -43,6 +44,7 @@ ostree_addfile = Rule(
            --owner-uid=0 --owner-gid=0;
     rm -rf $$tmpdir;
     """,
+    restat=True,
     inputs=["$ostree_repo/refs/heads/$in_branch", "$in_file"],
     output_type=OstreeRef,
     outputs=["$ostree_repo/refs/heads/$out_branch"],
