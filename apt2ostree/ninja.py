@@ -17,12 +17,13 @@ class Ninja(ninja_syntax.Writer):
     builddir = "_build"
 
     def __init__(self, regenerate_command=None, width=78, debug=True,
-                 ninjafile="build.ninja"):
+                 ninjafile="build.ninja", standalone=True):
         if regenerate_command is None:
             regenerate_command = sys.argv
 
         self.debug = debug
         self.ninjafile = ninjafile
+        self.standalone = standalone
 
         output = open(self.ninjafile + '~', 'w')
         super(Ninja, self).__init__(output, width)
@@ -40,27 +41,31 @@ class Ninja(ninja_syntax.Writer):
         self.variable("builddir", self.builddir)
         self.build(".FORCE", "phony")
 
-        # Write a reconfigure script to rememeber arguments passed to configure:
-        reconfigure = "%s/reconfigure-%s" % (self.builddir, ninjafile)
-        self.add_target(reconfigure)
-        try:
-            os.mkdir(self.builddir)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
-        with open(reconfigure, 'w') as f:
-            f.write("#!/bin/sh\nexec %s\n" % (
-                shquote(["./" + os.path.relpath(self.regenerate_command[0])] +
-                        self.regenerate_command[1:])))
-        os.chmod(reconfigure, 0o755)
-        self.rule("configure", reconfigure, generator=True)
+        if self.standalone:
+            # Write a reconfigure script to rememeber arguments passed to
+            # configure:
+            reconfigure = "%s/reconfigure-%s" % (self.builddir, ninjafile)
+            self.add_target(reconfigure)
+            try:
+                os.mkdir(self.builddir)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+            with open(reconfigure, 'w') as f:
+                f.write("#!/bin/sh\nexec %s\n" % (
+                    shquote(["./" + os.path.relpath(self.regenerate_command[0])]
+                            + self.regenerate_command[1:])))
+            os.chmod(reconfigure, 0o755)
+            self.rule("configure", reconfigure, generator=True)
 
         self.add_target("%s/.ninja_deps" % self.builddir)
         self.add_target("%s/.ninja_log" % self.builddir)
 
     def close(self):
         if not self.output.closed:
-            self.build(self.ninjafile, "configure", list(self.generator_deps))
+            if self.standalone:
+                self.build(self.ninjafile, "configure",
+                           list(self.generator_deps))
             super(Ninja, self).close()
             os.rename(self.ninjafile + '~', self.ninjafile)
 
