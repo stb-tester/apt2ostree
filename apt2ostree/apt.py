@@ -104,8 +104,8 @@ apt_base = Rule(
 download_deb = Rule(
     "download_deb", """\
         download() {
-            curl -L --fail -o $$tmpdir/deb $$1;
-            actual_sha256="$$(sha256sum $$tmpdir/deb | cut -f1 -d ' ')";
+            curl -L --fail -o $$tmpdir/deb $$1 &&
+            actual_sha256="$$(sha256sum $$tmpdir/deb | cut -f1 -d ' ')" &&
             if [ "$$actual_sha256" != "$sha256sum" ]; then
                 printf "FAIL: SHA256sum %s from %s doesn't match %s" \\
                     "$$actual_sha256" "$$1" "$sha256sum";
