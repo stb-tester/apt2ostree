@@ -132,6 +132,11 @@ download_deb = Rule(
         cd -;
         control=$$(find $$tmpdir -name 'control.tar.*');
         data=$$(find $$tmpdir -name 'data.tar.*');
+        case "$$data" in
+            *.zst)
+                data=$${data%.zst};
+                zstd --decompress $$data.zst -o $$data;;
+        esac;
         ostree --repo=$ostree_repo commit -b $ref_base/data
                --tree=tar=$$data --no-bindings --orphan --timestamp=0
                -s $aptly_pool_filename" data";
