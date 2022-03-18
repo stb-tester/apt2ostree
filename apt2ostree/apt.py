@@ -154,6 +154,9 @@ download_deb = Rule(
     outputs=['$ostree_repo/refs/heads/$ref_base/data',
              '$ostree_repo/refs/heads/$ref_base/control'],
     order_only=["$ostree_repo/config"],
+    # Sometimes the same deb is available from multiple different URLs.  This
+    # is fine and shouldn't cause configure to fail:
+    allow_non_identical_duplicates=True,
     description="Download $aptly_pool_filename")
 
 make_dpkg_info = Rule(
