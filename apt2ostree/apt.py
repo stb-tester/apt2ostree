@@ -372,7 +372,7 @@ class Apt(object):
         self.ninja = ninja
         self.archive_urls = set()
         self.deb_pool_mirrors = deb_pool_mirrors
-        self._update_lockfile_rules = set()
+        self.lockfile_rules = set()
 
         ninja.variable("apt_should_mirror", str(bool(apt_should_mirror)))
 
@@ -384,7 +384,7 @@ class Apt(object):
 
     def write_phony_rules(self):
         self.ninja.build("update-apt-lockfiles", "phony",
-                         inputs=list(self._update_lockfile_rules))
+                         inputs=list(self.lockfile_rules))
 
     def build_image(self, lockfile, packages, apt_sources, unpack_only=False,
                     usrmove=False, resolve_deps=True):
@@ -519,7 +519,7 @@ class Apt(object):
             mirrors=",".join(mirrors),
             architecture=apt_sources[0].architecture,
             keyring_arg=" ".join(all_keyring_args))
-        self._update_lockfile_rules.update(out)
+        self.lockfile_rules.update(out)
         return lockfile
 
     def image_from_lockfile(self, lockfile, architecture=None, usrmove=False):
