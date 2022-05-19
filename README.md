@@ -157,8 +157,7 @@ Dependencies
 
   and add `$GOPATH/bin` to your `$PATH`
 * [ninja](https://ninja-build.org/) build tool.
-* [Python](https://www.python.org/) - This project was built against Python 2.
-  Patches to make it also work with Python 3 would be gratefully accepted.
+* [Python](https://www.python.org/) - should support Python 2 & 3.
 
 Second stage building also requires:
 
