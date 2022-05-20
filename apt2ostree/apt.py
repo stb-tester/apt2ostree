@@ -620,6 +620,13 @@ class Apt(object):
                 prefix="/usr/share/python/bcep",
                 in_file=_find_file("quirks/pylint/pylint.bcep"),
                 out_branch=data.ref + "-fixed")
+        elif pkgname == "apt" and version == "2.0.8":
+            # https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1968154/comments/16
+            return ostree_addfile.build(
+                self.ninja, in_branch=data.ref,
+                prefix="/etc/kernel/postinst.d",
+                in_file=_find_file("quirks/apt/apt-auto-removal"),
+                out_branch=data.ref + "-fixed")
         else:
             return data
 
