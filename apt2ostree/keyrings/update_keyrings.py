@@ -18,7 +18,7 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.parse_args(argv[1:])
 
-    for x in ["xenial", "bionic-updates", "eoan", "focal"]:
+    for x in ["xenial", "bionic-updates", "eoan", "focal", "jammy"]:
         print(x)
         get_keyring_package(
             "ubuntu", x,
