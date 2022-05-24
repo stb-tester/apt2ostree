@@ -628,6 +628,14 @@ class Apt(object):
                 prefix="/etc/kernel/postinst.d",
                 in_file=_find_file("quirks/apt/apt-auto-removal"),
                 out_branch=data.ref + "-fixed")
+        elif pkgname == "usrmerge":
+            # Disable usrmerge.postinst, as we have done usrmove ourselves and
+            # for some reason the usrmerge.postinst script fails to detect this.
+            return ostree_addfile.build(
+                self.ninja, in_branch=data.ref,
+                prefix="/var/lib/dpkg/info",
+                in_file=_find_file("quirks/usrmerge/usrmerge.postinst"),
+                out_branch=data.ref + "-fixed")
         else:
             return data
 
