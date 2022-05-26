@@ -132,6 +132,11 @@ download_deb = Rule(
         cd -;
         control=$$(find $$tmpdir -name 'control.tar.*');
         data=$$(find $$tmpdir -name 'data.tar.*');
+        case "$$control" in
+            *.zst)
+                control=$${control%.zst};
+                zstd --decompress $$control.zst -o $$control --force;;
+        esac;
         case "$$data" in
             *.zst)
                 data=$${data%.zst};
