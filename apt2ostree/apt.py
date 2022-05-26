@@ -135,7 +135,7 @@ download_deb = Rule(
         case "$$data" in
             *.zst)
                 data=$${data%.zst};
-                zstd --decompress $$data.zst -o $$data;;
+                zstd --decompress $$data.zst -o $$data --force;;
         esac;
         ostree --repo=$ostree_repo commit -b $ref_base/data
                --tree=tar=$$data --no-bindings --orphan --timestamp=0
