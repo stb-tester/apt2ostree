@@ -281,6 +281,7 @@ dpkg_configure = Rule(
 
         BWRAP="sudo bwrap --bind $$TARGET / --proc /proc --dev /dev
             --tmpfs /tmp --tmpfs /run --setenv LANG C.UTF-8
+            --setenv PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             --setenv DEBIAN_FRONTEND noninteractive
             $binfmt_misc_support";
         if [ -x $$TARGET/var/lib/dpkg/info/dash.preinst ]; then
