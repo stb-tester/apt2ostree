@@ -145,7 +145,8 @@ See the comments at the top of the file for usage.
 Dependencies
 ============
 
-* [ostree](https://ostree.readthedocs.io/)
+* [ostree](https://ostree.readthedocs.io/) - You'll need a patched version.
+  See https://github.com/stb-tester/ostree/commit/4779209ef390627ac1c9801bc05d002859bbbb9a.
 * [aptly](https://www.aptly.info/) - You'll need a patched version of this
   adding lockfiles.  Fortunately aptly is quick and easy to build.  See
   https://github.com/stb-tester/aptly/tree/lockfile.  To build run:
