@@ -7,6 +7,7 @@ import os
 import pipes
 import platform
 import sys
+import typing
 if sys.version_info[0] >= 3:
     from urllib.parse import unquote
 else:
@@ -319,8 +320,12 @@ dpkg_configure = Rule(
     pool="console")
 
 
-AptSource = namedtuple(
-    "AptSource", "architecture distribution archive_url components keyrings")
+class AptSource(typing.NamedTuple):
+    architecture: str
+    distribution: str
+    archive_url: str
+    components: str
+    keyrings: typing.Sequence[str]
 
 
 _UBUNTU_RELEASES = {
@@ -392,19 +397,28 @@ class Apt(object):
         self.ninja.build("update-apt-lockfiles", "phony",
                          inputs=list(self.lockfile_rules))
 
-    def build_image(self, lockfile, packages, apt_sources, unpack_only=False,
-                    usrmove=False, resolve_deps=True):
+    def build_image(
+            self,
+            lockfile: str,
+            packages: "typing.Sequence[str]",
+            apt_sources: "typing.Sequence[AptSource]",
+            unpack_only=False,
+            usrmove=False,
+            resolve_deps=True
+    ):
         self.generate_lockfile(lockfile, packages, apt_sources, resolve_deps)
         stage_1 = self.image_from_lockfile(
             lockfile, apt_sources[0].architecture, usrmove)
-        sources_lists = []
+        sources_lists: "list[OstreeRef]" = []
         for n, apt_source in enumerate(apt_sources):
             sources_lists.append(apt_base.build(
-                self.ninja, archive_url=apt_source.archive_url,
+                self.ninja,
+                archive_url=apt_source.archive_url,
                 components=apt_source.components,
                 architecture=apt_source.architecture,
                 distribution=apt_source.distribution,
-                name="apt2ostree-%i" % n))
+                name="apt2ostree-%i" % n,
+            ))
         if unpack_only:
             out = stage_1
         else:
@@ -605,7 +619,7 @@ class Apt(object):
                          "phony", inputs=image.filename)
         return image
 
-    def fix_package(self, pkgname, version, data):
+    def fix_package(self, pkgname, version, data: OstreeRef):
         """
         Here we can apply quirks as required to get particular packages to
         install.

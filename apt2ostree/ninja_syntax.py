@@ -11,6 +11,7 @@ use Python.
 
 import re
 import textwrap
+import typing
 
 
 def escape_path(word):
@@ -63,8 +64,17 @@ class Writer(object):
         if deps:
             self.variable('deps', deps, indent=1)
 
-    def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
-              variables=None, implicit_outputs=None, pool=None):
+    def build(
+            self,
+            outputs: "list[str] | str | None",
+            rule: str,
+            inputs: "list[str] | str | None" = None,
+            implicit: "list[str] | str | None" = None,
+            order_only: "list[str] | str | None" = None,
+            variables: "dict[str, str] | typing.Iterable[str] | None" = None,
+            implicit_outputs: "list[str] | str | None" = None,
+            pool: "str | None" = None,
+    ):
         outputs = as_list(outputs)
         out_outputs = [escape_path(x) for x in outputs]
         all_inputs = [escape_path(x) for x in as_list(inputs)]
@@ -164,6 +174,18 @@ class Writer(object):
 
     def close(self):
         self.output.close()
+
+
+if typing.TYPE_CHECKING:
+    @typing.overload
+    def as_list(input: None) -> list[str]:
+        ...
+    @typing.overload
+    def as_list(input: list[str]) -> list[str]:
+        ...
+    @typing.overload
+    def as_list(input: str) -> list[str]:
+        ...
 
 
 def as_list(input):
