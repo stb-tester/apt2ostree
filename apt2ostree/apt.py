@@ -86,9 +86,12 @@ dpkg_base = Rule(
 apt_base = Rule(
     "apt_base", """\
     tmpdir="$$(mktemp -dp $builddir/tmp -t apt_base.XXXXXX)";
-    mkdir -p $$tmpdir/etc/apt/sources.list.d;
+    mkdir -p $$tmpdir/etc/apt/sources.list.d $$tmpdir/etc/apt/trusted.gpg.d;
     printf "deb [arch=%s] %s %s %s\\n" $architecture $archive_url $distribution "$components"
         >$$tmpdir/etc/apt/sources.list.d/$name.list;
+    for keyring in $keyrings; do
+        cp "$$keyring" "$$tmpdir/etc/apt/trusted.gpg.d/";
+    done;
     ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
            --tree=dir=$$tmpdir
            --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
@@ -375,6 +378,16 @@ def keyrings_for(distro, release):
     return out
 
 
+def shquote(s):
+    """Quote a string for use in a shell command."""
+    if isinstance(s, str):
+        return pipes.quote(s)
+    elif isinstance(s, list):
+        return " ".join(pipes.quote(x) for x in s)
+    else:
+        raise TypeError("shquote expects a str or bytes, got %s" % type(s))
+
+
 class Apt(object):
     def __init__(self, ninja, deb_pool_mirrors=None, apt_should_mirror=False):
         if deb_pool_mirrors is None:
@@ -417,6 +430,7 @@ class Apt(object):
                 components=apt_source.components,
                 architecture=apt_source.architecture,
                 distribution=apt_source.distribution,
+                keyrings=shquote(apt_source.keyrings),
                 name="apt2ostree-%i" % n,
             ))
         if unpack_only:
