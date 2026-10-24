@@ -337,6 +337,7 @@ _UBUNTU_RELEASES = {
     "18.04": "bionic",
     "20.04": "focal",
     "22.04": "jammy",
+    "26.04": "resolute",
 }
 
 
