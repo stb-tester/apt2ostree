@@ -1,8 +1,8 @@
 import errno
 import hashlib
 import os
-import pipes
 import re
+import shlex
 import sys
 import textwrap
 import traceback
@@ -295,6 +295,6 @@ class Rule(typing.Generic[OutputT]):
 
 def shquote(v):
     if _is_string(v):
-        return pipes.quote(v)
+        return shlex.quote(v)
     else:
         return " ".join(shquote(x) for x in v)

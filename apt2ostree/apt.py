@@ -4,8 +4,8 @@ import errno
 import glob
 import hashlib
 import os
-import pipes
 import platform
+import shlex
 import sys
 import typing
 if sys.version_info[0] >= 3:
@@ -382,9 +382,9 @@ def keyrings_for(distro, release):
 def shquote(s):
     """Quote a string for use in a shell command."""
     if isinstance(s, str):
-        return pipes.quote(s)
+        return shlex.quote(s)
     elif isinstance(s, list):
-        return " ".join(pipes.quote(x) for x in s)
+        return " ".join(shlex.quote(x) for x in s)
     else:
         raise TypeError("shquote expects a str or bytes, got %s" % type(s))
 
@@ -530,7 +530,7 @@ class Apt(object):
                 "-gpg-provider=internal",
                 "mirror-%i" % n, src.archive_url,
                 src.distribution] + src.components.split()
-            gen_mirror_cmds.append(" ".join(pipes.quote(x) for x in cmd))
+            gen_mirror_cmds.append(" ".join(shlex.quote(x) for x in cmd))
 
         create_mirrors = "_build/apt/lockfile/create_mirrors-%s" % (
             s.hexdigest()[:7])
