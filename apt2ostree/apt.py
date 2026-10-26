@@ -4,9 +4,10 @@ import errno
 import glob
 import hashlib
 import os
-import pipes
 import platform
+import shlex
 import sys
+import typing
 if sys.version_info[0] >= 3:
     from urllib.parse import unquote
 else:
@@ -85,9 +86,12 @@ dpkg_base = Rule(
 apt_base = Rule(
     "apt_base", """\
     tmpdir="$$(mktemp -dp $builddir/tmp -t apt_base.XXXXXX)";
-    mkdir -p $$tmpdir/etc/apt/sources.list.d;
+    mkdir -p $$tmpdir/etc/apt/sources.list.d $$tmpdir/etc/apt/trusted.gpg.d;
     printf "deb [arch=%s] %s %s %s\\n" $architecture $archive_url $distribution "$components"
         >$$tmpdir/etc/apt/sources.list.d/$name.list;
+    for keyring in $keyrings; do
+        cp "$$keyring" "$$tmpdir/etc/apt/trusted.gpg.d/";
+    done;
     ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
            --tree=dir=$$tmpdir
            --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
@@ -319,8 +323,12 @@ dpkg_configure = Rule(
     pool="console")
 
 
-AptSource = namedtuple(
-    "AptSource", "architecture distribution archive_url components keyrings")
+class AptSource(typing.NamedTuple):
+    architecture: str
+    distribution: str
+    archive_url: str
+    components: str
+    keyrings: typing.Sequence[str]
 
 
 _UBUNTU_RELEASES = {
@@ -329,6 +337,7 @@ _UBUNTU_RELEASES = {
     "18.04": "bionic",
     "20.04": "focal",
     "22.04": "jammy",
+    "26.04": "resolute",
 }
 
 
@@ -370,6 +379,16 @@ def keyrings_for(distro, release):
     return out
 
 
+def shquote(s):
+    """Quote a string for use in a shell command."""
+    if isinstance(s, str):
+        return shlex.quote(s)
+    elif isinstance(s, list):
+        return " ".join(shlex.quote(x) for x in s)
+    else:
+        raise TypeError("shquote expects a str or bytes, got %s" % type(s))
+
+
 class Apt(object):
     def __init__(self, ninja, deb_pool_mirrors=None, apt_should_mirror=False):
         if deb_pool_mirrors is None:
@@ -392,19 +411,29 @@ class Apt(object):
         self.ninja.build("update-apt-lockfiles", "phony",
                          inputs=list(self.lockfile_rules))
 
-    def build_image(self, lockfile, packages, apt_sources, unpack_only=False,
-                    usrmove=False, resolve_deps=True):
+    def build_image(
+            self,
+            lockfile: str,
+            packages: "typing.Sequence[str]",
+            apt_sources: "typing.Sequence[AptSource]",
+            unpack_only=False,
+            usrmove=False,
+            resolve_deps=True
+    ):
         self.generate_lockfile(lockfile, packages, apt_sources, resolve_deps)
         stage_1 = self.image_from_lockfile(
             lockfile, apt_sources[0].architecture, usrmove)
-        sources_lists = []
+        sources_lists: "list[OstreeRef]" = []
         for n, apt_source in enumerate(apt_sources):
             sources_lists.append(apt_base.build(
-                self.ninja, archive_url=apt_source.archive_url,
+                self.ninja,
+                archive_url=apt_source.archive_url,
                 components=apt_source.components,
                 architecture=apt_source.architecture,
                 distribution=apt_source.distribution,
-                name="apt2ostree-%i" % n))
+                keyrings=shquote(apt_source.keyrings),
+                name="apt2ostree-%i" % n,
+            ))
         if unpack_only:
             out = stage_1
         else:
@@ -501,7 +530,7 @@ class Apt(object):
                 "-gpg-provider=internal",
                 "mirror-%i" % n, src.archive_url,
                 src.distribution] + src.components.split()
-            gen_mirror_cmds.append(" ".join(pipes.quote(x) for x in cmd))
+            gen_mirror_cmds.append(" ".join(shlex.quote(x) for x in cmd))
 
         create_mirrors = "_build/apt/lockfile/create_mirrors-%s" % (
             s.hexdigest()[:7])
@@ -605,7 +634,7 @@ class Apt(object):
                          "phony", inputs=image.filename)
         return image
 
-    def fix_package(self, pkgname, version, data):
+    def fix_package(self, pkgname, version, data: OstreeRef):
         """
         Here we can apply quirks as required to get particular packages to
         install.
