@@ -1,11 +1,12 @@
 import errno
 import hashlib
 import os
-import pipes
 import re
+import shlex
 import sys
 import textwrap
 import traceback
+import typing
 
 from . import ninja_syntax
 
@@ -206,11 +207,16 @@ def vars_in(items):
     return out
 
 
-class Rule(object):
-    def __init__(self, name, command, outputs=None, inputs=None,
-                 description=None, order_only=None, implicit=None,
-                 output_type=None, allow_non_identical_duplicates=False,
-                 **kwargs):
+OutputT = typing.TypeVar("OutputT")
+
+
+class Rule(typing.Generic[OutputT]):
+    def __init__(
+            self, name, command, outputs=None, inputs=None,
+            description=None, order_only=None, implicit=None,
+            output_type: "typing.Callable[[list[str]], OutputT] | None" = None,
+            allow_non_identical_duplicates=False,
+            **kwargs):
         if order_only is None:
             order_only = []
         if implicit is None:
@@ -232,8 +238,10 @@ class Rule(object):
                 "%s=$%s" % (x, x) for x in self.vars))
         self.description = description
 
-    def build(self, ninja, outputs=None, inputs=None, implicit=None,
-              order_only=None, implicit_outputs=None, pool=None, **kwargs):
+    def build(
+            self, ninja: "Ninja", outputs=None, inputs=None, implicit=None,
+            order_only=None, implicit_outputs=None, pool=None, **kwargs,
+    ) -> "OutputT":
         if outputs is None:
             outputs = []
         if inputs is None:
@@ -287,6 +295,6 @@ class Rule(object):
 
 def shquote(v):
     if _is_string(v):
-        return pipes.quote(v)
+        return shlex.quote(v)
     else:
         return " ".join(shquote(x) for x in v)
