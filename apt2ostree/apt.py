@@ -76,7 +76,7 @@ dpkg_base = Rule(
     cd -;
     ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$architecture"
         --tree=dir=$$tmpdir
-        --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
+        --no-bindings --orphan --timestamp=0 --canonical-permissions;
     rm -rf "$$tmpdir";
     """, restat=True,
     output_type=OstreeRef,
@@ -94,7 +94,7 @@ apt_base = Rule(
     done;
     ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
            --tree=dir=$$tmpdir
-           --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0;
+           --no-bindings --orphan --timestamp=0 --canonical-permissions;
     rm -rf "$$tmpdir";
     """,
     output_type=OstreeRef,
@@ -208,7 +208,7 @@ make_dpkg_info = Rule(
         ( cat control/control; echo ) >available;
         cd -;
         ostree --repo=$ostree_repo commit -b "$ref_base/info" --tree=dir=$$tmpdir/out
-            --no-bindings --orphan --timestamp=0 --owner-uid=0 --owner-gid=0
+            --no-bindings --orphan --timestamp=0 --canonical-permissions
             --no-xattrs;
         overwrite_if_changed $$tmpdir/status $builddir/$ref_base/status;
         overwrite_if_changed $$tmpdir/available $builddir/$ref_base/available;
@@ -259,7 +259,7 @@ deb_combine_meta = Rule(
     cat $in >$$tmpdir/var/lib/dpkg/$meta;
     ostree --repo=$ostree_repo commit -b "deb/images/$pkgs_digest/$meta"
         --tree=dir=$$tmpdir --no-bindings --orphan --timestamp=0
-        --owner-uid=0 --owner-gid=0 --no-xattrs;
+        --canonical-permissions --no-xattrs;
     rm -rf "$$tmpdir";
     """,
     restat=True,
