@@ -44,7 +44,7 @@ update_lockfile = Rule("update_lockfile", """\
 dpkg_base = Rule(
     "dpkg_base", """\
     set -ex;
-    tmpdir=_build/tmp/apt/dpkg-base/$architecture;
+    tmpdir=_build/tmp/apt/dpkg-base/$arch_ref;
     rm -rf "$$tmpdir";
     mkdir -p $$tmpdir;
     cd $$tmpdir;
@@ -58,7 +58,7 @@ dpkg_base = Rule(
              var/lib/apt/lists/auxfiles
              var/lib/apt/lists/partial;
     echo 1 >var/lib/dpkg/info/format;
-    echo "$architecture" >var/lib/dpkg/arch;
+    echo "$architecture" | tr , '\\n' >var/lib/dpkg/arch;
     touch etc/shells
           var/cache/apt/archives/lock
           var/lib/dpkg/diversions
@@ -74,13 +74,13 @@ dpkg_base = Rule(
     chmod 0700 var/cache/apt/archives/partial
                var/lib/apt/lists/partial;
     cd -;
-    ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$architecture"
+    ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$arch_ref"
         --tree=dir=$$tmpdir
         --no-bindings --orphan --timestamp=0 --canonical-permissions;
     rm -rf "$$tmpdir";
     """, restat=True,
     output_type=OstreeRef,
-    outputs=["$ostree_repo/refs/heads/deb/dpkg-base/$architecture"],
+    outputs=["$ostree_repo/refs/heads/deb/dpkg-base/$arch_ref"],
     order_only=["$ostree_repo/config"])
 
 apt_base = Rule(
@@ -344,9 +344,7 @@ _UBUNTU_RELEASES = {
 def ubuntu_apt_sources(release="bionic", architecture="amd64"):
     if release in _UBUNTU_RELEASES:
         release = _UBUNTU_RELEASES[release]
-    if release in ["trusty", "xenial"]:
-        archive_url = "https://old-releases.ubuntu.com/ubuntu"
-    elif architecture in ["amd64", "i386"]:
+    if architecture in ["amd64", "i386"]:
         archive_url = "http://archive.ubuntu.com/ubuntu"
     else:
         archive_url = "http://ports.ubuntu.com/ubuntu-ports"
@@ -361,6 +359,15 @@ def ubuntu_apt_sources(release="bionic", architecture="amd64"):
                   "main restricted universe multiverse",
                   keyrings_for("ubuntu", "%s-security" % release)),
     ]
+
+
+def _architectures(apt_sources):
+    out = []
+    for src in apt_sources:
+        for arch in src.architecture.split(","):
+            if arch not in out:
+                out.append(arch)
+    return ",".join(out)
 
 
 def keyrings_for(distro, release):
@@ -422,7 +429,7 @@ class Apt(object):
     ):
         self.generate_lockfile(lockfile, packages, apt_sources, resolve_deps)
         stage_1 = self.image_from_lockfile(
-            lockfile, apt_sources[0].architecture, usrmove)
+            lockfile, _architectures(apt_sources), usrmove)
         sources_lists: "list[OstreeRef]" = []
         for n, apt_source in enumerate(apt_sources):
             sources_lists.append(apt_base.build(
@@ -437,7 +444,8 @@ class Apt(object):
         if unpack_only:
             out = stage_1
         else:
-            stage_2 = self.second_stage(stage_1, apt_sources[0].architecture)
+            stage_2 = self.second_stage(
+                stage_1, apt_sources[0].architecture.split(",")[0])
             assert "unpacked" in stage_1.ref
             complete = ostree_combine.build(
                 self.ninja,
@@ -552,7 +560,7 @@ class Apt(object):
             packages=packages,
             create_mirrors=create_mirrors,
             mirrors=",".join(mirrors),
-            architecture=apt_sources[0].architecture,
+            architecture=_architectures(apt_sources),
             keyring_arg=" ".join(all_keyring_args))
         self.lockfile_rules.update(out)
         return lockfile
@@ -560,7 +568,8 @@ class Apt(object):
     def image_from_lockfile(self, lockfile, architecture=None, usrmove=False):
         if architecture is None:
             architecture = "amd64"
-        base = dpkg_base.build(self.ninja, architecture=architecture)
+        base = dpkg_base.build(self.ninja, architecture=architecture,
+                               arch_ref=architecture.replace(",", "_"))
 
         all_data = []
         all_info = []
