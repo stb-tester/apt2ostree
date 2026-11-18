@@ -204,6 +204,7 @@ make_dpkg_info = Rule(
                 mv "control/$$x" "out/var/lib/dpkg/info/$pkgname$$suffix.$$x";
             fi;
         done;
+        sed -i '/^[[:space:]]*$$/d' control/control;
         ( cat control/control; echo Status: install ok unpacked; echo ) >status;
         ( cat control/control; echo ) >available;
         cd -;
