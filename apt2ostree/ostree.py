@@ -15,7 +15,7 @@ class OstreeRef(namedtuple("OstreeImage", "filename")):
 
 ostree = Rule("ostree", """\
     mkdir $ostree_repo;
-    ostree init --repo=$ostree_repo --mode=bare-user;
+    $ostree init --repo=$ostree_repo --mode=bare-user;
     """, outputs=['$ostree_repo/config'], restat=True)
 
 
@@ -23,7 +23,7 @@ ostree_combine = Rule(
     "ostree_combine", """\
         echo $in
          | sed 's,$ostree_repo/refs/heads/,--tree=ref=,g'
-         | xargs -xr ostree --repo=$ostree_repo commit -b $branch --no-bindings
+         | xargs -xr $ostree --repo=$ostree_repo commit -b $branch --no-bindings
                             --orphan --timestamp=0;
         [ -e $out ]""",
     restat=True,
@@ -37,11 +37,11 @@ ostree_addfile = Rule(
     set -ex;
     tmpdir=$$(mktemp -dt ostree_adddir.XXXXXX);
     cp $in_file $$tmpdir;
-    file_commit=$$(ostree --repo=$ostree_repo commit
+    file_commit=$$($ostree --repo=$ostree_repo commit
            --no-bindings --orphan --timestamp=0
            --tree=prefix=$prefix --tree=dir=$$tmpdir
            --canonical-permissions);
-    ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
+    $ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
            --no-bindings --orphan --timestamp=0
            --tree=ref=$in_branch --tree=ref=$$file_commit;
     rm -rf $$tmpdir;

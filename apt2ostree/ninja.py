@@ -18,7 +18,7 @@ class Ninja(ninja_syntax.Writer):
     builddir = "_build"
 
     def __init__(self, regenerate_command=None, width=78, debug=True,
-                 ninjafile="build.ninja", standalone=True):
+                 ninjafile="build.ninja", standalone=True, ostree="ostree"):
         if regenerate_command is None:
             regenerate_command = sys.argv
 
@@ -40,6 +40,7 @@ class Ninja(ninja_syntax.Writer):
 
         self.regenerate_command = regenerate_command
         self.variable("builddir", self.builddir)
+        self.variable("ostree", ostree)
         self.build(".FORCE", "phony")
 
         if self.standalone:
@@ -276,6 +277,9 @@ class Rule(typing.Generic[OutputT]):
         if self.implicit:
             inputs.extend(ninja_syntax.expand(x, ninja.global_vars, kwargs)
                           for x in self.implicit)
+
+        if 'ostree' in self.vars and '/' in ninja.global_vars['ostree']:
+            order_only = order_only + ['$ostree']
 
         ninja.newline()
         outputs = ninja.build(

@@ -74,7 +74,7 @@ dpkg_base = Rule(
     chmod 0700 var/cache/apt/archives/partial
                var/lib/apt/lists/partial;
     cd -;
-    ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$arch_ref"
+    $ostree --repo=$ostree_repo commit -b "deb/dpkg-base/$arch_ref"
         --tree=dir=$$tmpdir
         --no-bindings --orphan --timestamp=0 --canonical-permissions;
     rm -rf "$$tmpdir";
@@ -92,7 +92,7 @@ apt_base = Rule(
     for keyring in $keyrings; do
         cp "$$keyring" "$$tmpdir/etc/apt/trusted.gpg.d/";
     done;
-    ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
+    $ostree --repo=$ostree_repo commit -b deb/apt_base/$_args_digest
            --tree=dir=$$tmpdir
            --no-bindings --orphan --timestamp=0 --canonical-permissions;
     rm -rf "$$tmpdir";
@@ -146,10 +146,10 @@ download_deb = Rule(
                 data=$${data%.zst};
                 zstd --decompress $$data.zst -o $$data --force;;
         esac;
-        ostree --repo=$ostree_repo commit -b $ref_base/data
+        $ostree --repo=$ostree_repo commit -b $ref_base/data
                --tree=tar=$$data --no-bindings --orphan --timestamp=0
                -s $aptly_pool_filename" data";
-        ostree --repo=$ostree_repo commit -b $ref_base/control
+        $ostree --repo=$ostree_repo commit -b $ref_base/control
                --tree=tar=$$control --no-bindings --orphan --timestamp=0
                -s $aptly_pool_filename" control";
         if [ "$apt_should_mirror" = "True" ]; then
@@ -179,13 +179,13 @@ make_dpkg_info = Rule(
         tmpdir=$builddir/tmp/make_dpkg_info/$sha256sum;
         rm -rf "$$tmpdir";
         mkdir -p $$tmpdir/out/var/lib/dpkg/info;
-        ostree --repo=$ostree_repo checkout --repo=$ostree_repo -UH "$ref_base/control" "$$tmpdir/control";
+        $ostree --repo=$ostree_repo checkout --repo=$ostree_repo -UH "$ref_base/control" "$$tmpdir/control";
         multi_arch=$$(awk '/^Multi-Arch:/ {print $$2}' $$tmpdir/control/control);
         if [ "$$multi_arch" = "same" ]; then
             architecture=$$(awk '/^Architecture:/ {print $$2}' $$tmpdir/control/control);
             suffix=":$$architecture";
         fi;
-        ostree --repo=$ostree_repo ls -R $ref_base/data --nul-filenames-only
+        $ostree --repo=$ostree_repo ls -R $ref_base/data --nul-filenames-only
         | tr '\\0' '\\n' 
         | sed 's,^/$$,/.,' >$$tmpdir/out/var/lib/dpkg/info/$pkgname$$suffix.list;
         cd "$$tmpdir";
@@ -208,7 +208,7 @@ make_dpkg_info = Rule(
         ( cat control/control; echo Status: install ok unpacked; echo ) >status;
         ( cat control/control; echo ) >available;
         cd -;
-        ostree --repo=$ostree_repo commit -b "$ref_base/info" --tree=dir=$$tmpdir/out
+        $ostree --repo=$ostree_repo commit -b "$ref_base/info" --tree=dir=$$tmpdir/out
             --no-bindings --orphan --timestamp=0 --canonical-permissions
             --no-xattrs;
         overwrite_if_changed $$tmpdir/status $builddir/$ref_base/status;
@@ -228,20 +228,20 @@ make_dpkg_info = Rule(
 do_usrmove = Rule(
     "do_usrmove", """\
     set -ex;
-    if ! ostree --repo=$ostree_repo ls "$in_branch" | grep -e /bin -e /lib -e /sbin; then
-        ostree --repo=$ostree_repo commit -b $out_branch
+    if ! $ostree --repo=$ostree_repo ls "$in_branch" | grep -e /bin -e /lib -e /sbin; then
+        $ostree --repo=$ostree_repo commit -b $out_branch
                --no-bindings --orphan --timestamp=0 --tree=ref=$in_branch;
         exit 0;
     fi;
     mkdir -p $builddir/tmp/do_usrmove;
     tmpdir=$builddir/tmp/do_usrmove/$$(systemd-escape $in_branch);
     rm -rf "$$tmpdir";
-    ostree --repo=$ostree_repo checkout -UH $in_branch "$$tmpdir";
-    ostree --repo=$ostree_repo checkout -UH :$in_branch:bin "$$tmpdir/usr/bin" --union && rm -rf $$tmpdir/bin && ln -s usr/bin $$tmpdir/bin || true;
-    ostree --repo=$ostree_repo checkout -UH :$in_branch:sbin "$$tmpdir/usr/sbin" --union && rm -rf $$tmpdir/sbin && ln -s usr/sbin $$tmpdir/sbin || true;
-    ostree --repo=$ostree_repo checkout -UH :$in_branch:lib "$$tmpdir/usr/lib" --union  && rm -rf $$tmpdir/lib && ln -s usr/lib $$tmpdir/lib || true;
+    $ostree --repo=$ostree_repo checkout -UH $in_branch "$$tmpdir";
+    $ostree --repo=$ostree_repo checkout -UH :$in_branch:bin "$$tmpdir/usr/bin" --union && rm -rf $$tmpdir/bin && ln -s usr/bin $$tmpdir/bin || true;
+    $ostree --repo=$ostree_repo checkout -UH :$in_branch:sbin "$$tmpdir/usr/sbin" --union && rm -rf $$tmpdir/sbin && ln -s usr/sbin $$tmpdir/sbin || true;
+    $ostree --repo=$ostree_repo checkout -UH :$in_branch:lib "$$tmpdir/usr/lib" --union  && rm -rf $$tmpdir/lib && ln -s usr/lib $$tmpdir/lib || true;
 
-    ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
+    $ostree --repo=$ostree_repo commit --devino-canonical -b $out_branch
            --no-bindings --orphan --timestamp=0 --tree=dir=$$tmpdir
            --owner-uid=0 --owner-gid=0;
     """,
@@ -258,7 +258,7 @@ deb_combine_meta = Rule(
     rm -rf "$$tmpdir";
     mkdir -p "$$tmpdir/var/lib/dpkg";
     cat $in >$$tmpdir/var/lib/dpkg/$meta;
-    ostree --repo=$ostree_repo commit -b "deb/images/$pkgs_digest/$meta"
+    $ostree --repo=$ostree_repo commit -b "deb/images/$pkgs_digest/$meta"
         --tree=dir=$$tmpdir --no-bindings --orphan --timestamp=0
         --canonical-permissions --no-xattrs;
     rm -rf "$$tmpdir";
@@ -280,7 +280,7 @@ dpkg_configure = Rule(
         sudo rm -rf "$$tmpdir";
         mkdir -p $$tmpdir;
         TARGET=$$tmpdir/co;
-        sudo ostree --repo=$ostree_repo checkout --force-copy $in_branch $$TARGET;
+        sudo $ostree --repo=$ostree_repo checkout --force-copy $in_branch $$TARGET;
         sudo cp $$TARGET/usr/share/base-passwd/passwd.master $$TARGET/etc/passwd;
         sudo cp $$TARGET/usr/share/base-passwd/group.master $$TARGET/etc/group;
 
@@ -310,7 +310,7 @@ dpkg_configure = Rule(
         sudo rm -f $$TARGET/etc/machine-id;
 
         sudo tar -C $$tmpdir/co -c .
-        | ostree --repo=$ostree_repo commit --branch $out_branch --no-bindings
+        | $ostree --repo=$ostree_repo commit --branch $out_branch --no-bindings
                  --orphan --timestamp=0 --tree=tar=/dev/stdin;
         sudo rm -rf $$tmpdir;
     """,
